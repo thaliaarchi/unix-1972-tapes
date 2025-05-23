@@ -1,6 +1,9 @@
 use std::{
+    ffi::OsStr,
     fmt::{self, Write},
     mem,
+    ops::Range,
+    os::unix::ffi::OsStrExt,
     time::Duration,
 };
 
@@ -79,8 +82,25 @@ impl Entry {
         u16::from_le_bytes(self.taddress)
     }
 
+    pub fn range(&self) -> Range<usize> {
+        let addr = (self.taddress() as usize) * 512;
+        addr..addr + self.size() as usize
+    }
+
     pub fn checksum(&self) -> u16 {
         u16::from_le_bytes(self.checksum)
+    }
+
+    pub fn to_tar_header(&self) -> tar::Header {
+        let mut h = tar::Header::new_old();
+        h.set_path(OsStr::from_bytes(&self.name()[1..])).unwrap();
+        // TODO: Adjust mode to modern
+        h.set_mode(self.mode as _);
+        h.set_uid(self.uid as _);
+        h.set_size(self.size() as _);
+        h.set_mtime(self.tmod_timestamp(Epoch::Y1972).as_second() as _);
+        h.set_cksum();
+        h
     }
 }
 

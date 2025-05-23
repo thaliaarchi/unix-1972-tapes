@@ -10,3 +10,4 @@ categories = ["encoding"]
 
 [dependencies]
 jiff = { version = "0.2.14", default-features = false, features = ["perf-inline"] }
+tar = "0.4.44"
