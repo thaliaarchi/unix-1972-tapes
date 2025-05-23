@@ -9,3 +9,4 @@ keywords = ["unix", "retrocomputing"]
 categories = ["encoding"]
 
 [dependencies]
+jiff = { version = "0.2.14", default-features = false, features = ["perf-inline"] }

@@ -1,7 +1,10 @@
 use std::{
     fmt::{self, Write},
     mem,
+    time::Duration,
 };
+
+use jiff::{Timestamp, civil::Date, tz::TimeZone};
 
 #[derive(Clone, PartialEq, Eq)]
 #[repr(C)]
@@ -14,6 +17,14 @@ pub struct Entry {
     pub taddress: [u8; 2],
     pub unused: [u8; 20],
     pub checksum: [u8; 2],
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Epoch {
+    Y1970 = 0,
+    Y1971 = 1,
+    Y1972 = 2,
+    Y1973 = 3,
 }
 
 impl Entry {
@@ -42,12 +53,32 @@ impl Entry {
         }
         name
     }
+
     pub fn size(&self) -> u16 {
         u16::from_le_bytes(self.size)
     }
+
+    pub fn tmod(&self) -> u32 {
+        let t = self.tmod;
+        (t[1] as u32) << 24 | (t[0] as u32) << 16 | (t[3] as u32) << 8 | (t[2] as u32) << 0
+    }
+
+    pub fn tmod_timestamp(&self, epoch: Epoch) -> Timestamp {
+        let t = self.tmod();
+        let seconds = t / 60;
+        let frac = t % 60;
+        let since = Duration::new(seconds as _, (frac * (1_000_000_000 / 60)) as _);
+
+        let epoch = Date::constant(1970 + epoch as i16, 1, 1);
+        let epoch = epoch.to_zoned(TimeZone::UTC).unwrap();
+
+        epoch.timestamp() + since
+    }
+
     pub fn taddress(&self) -> u16 {
         u16::from_le_bytes(self.taddress)
     }
+
     pub fn checksum(&self) -> u16 {
         u16::from_le_bytes(self.checksum)
     }
@@ -71,7 +102,8 @@ impl fmt::Debug for Entry {
         s.field("mode", &Mode(self.mode));
         s.field("uid", &self.uid);
         s.field("size", &self.size());
-        s.field("tmod", &self.tmod);
+        s.field("tmod", &self.tmod());
+        s.field("tmod_timestamp", &self.tmod_timestamp(Epoch::Y1972));
         s.field("taddress", &self.taddress());
         if !self.unused.iter().all(|&b| b == 0) {
             s.field("unused", &Bytes(&self.unused));
