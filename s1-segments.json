@@ -1,0 +1,12 @@
+[
+  {"name": "", "blocks": [98, 99, 100, 101]},
+  {"name": "ed3 -- text editor", "blocks": [102, 103, 104, 105, 106, 107, 108, 109, 110]},
+  {"name": "global command", "blocks": [111, 112, 113, 114, 115, 116]},
+  {"name": "init -- process control initialization", "blocks": [117, 118, 119, 120, 121]},
+  {"name": "ldx -- link editor", "blocks": [122, 123, 124, 125]},
+  {"name": "ld2 -- link editor", "blocks": [126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139]},
+  {"name": "df -- find free space", "blocks": [140, 141]},
+  {"name": "dusg -- summarize disk usage", "blocks": [142, 143, 144, 145]},
+  {"name": "fortran command", "blocks": [146, 147, 148, 149]},
+  {"name": "fstrip -- remove fortran internal symbols", "blocks": [150, 151, 152, 153, 154]}
+]
