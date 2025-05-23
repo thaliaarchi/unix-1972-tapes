@@ -1,0 +1,11 @@
+[package]
+name = "unix-1972-bits"
+version = "0.1.0"
+authors = ["Thalia Archibald <thalia@archibald.dev>"]
+edition = "2024"
+description = "Parser for the Unix s2-bits tape"
+license = "BSD-3-Clause"
+keywords = ["unix", "retrocomputing"]
+categories = ["encoding"]
+
+[dependencies]
