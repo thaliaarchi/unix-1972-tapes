@@ -6,7 +6,9 @@ in the Unix Archive.
 Usage:
 
 ```sh
+wget https://www.tuhs.org/Archive/Distributions/Research/1972_stuff/s1-bits.gz
 wget https://www.tuhs.org/Archive/Distributions/Research/1972_stuff/s2-bits.gz
+gunzip s1-bits.gz
 gunzip s2-bits.gz
 cargo run
 ```
