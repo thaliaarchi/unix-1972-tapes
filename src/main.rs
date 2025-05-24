@@ -53,11 +53,9 @@ fn main() {
                     named.len,
                 );
             }
-            if named.path == "copy" {
-                continue;
-            }
-            let path = named.path.strip_prefix("/").unwrap_or(&named.path);
-            format!("files/{path}")
+            (named.path.strip_prefix("/"))
+                .map(|p| p.to_owned())
+                .unwrap_or(named.path)
         } else {
             let ext = if segment
                 .data
