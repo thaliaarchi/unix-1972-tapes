@@ -58,4 +58,5 @@ fn main() {
             tar.append(&h, data).unwrap();
         }
     }
+    println!("{:?}", segments.intervals);
 }
