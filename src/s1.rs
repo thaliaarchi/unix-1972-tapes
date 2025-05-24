@@ -16,7 +16,16 @@ pub struct Segments<'s> {
 pub struct Segment {
     pub path: String,
     pub block: usize,
-    pub end: usize,
+    #[serde(flatten)]
+    pub range: SegmentRange,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[serde(untagged)]
+pub enum SegmentRange {
+    Block { end: usize },
+    Offset { offset: usize, len: Option<usize> },
+    Chunk { len: usize },
 }
 
 impl<'a> Segments<'a> {
@@ -50,6 +59,19 @@ impl<'a> Segments<'a> {
 
 impl Segment {
     pub fn range(&self) -> Range<usize> {
-        self.block * 512..self.end * 512
+        let mut start = self.block * 512;
+        let end = match self.range {
+            SegmentRange::Block { end } => end * 512,
+            SegmentRange::Offset { offset, len } => {
+                start += offset;
+                match len {
+                    Some(len) => start + len,
+                    None => (self.block + offset.div_ceil(512)) * 512,
+                }
+            }
+            SegmentRange::Chunk { len } => start + len,
+        };
+        assert!(start <= end);
+        start..end
     }
 }

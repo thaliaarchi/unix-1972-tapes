@@ -19,7 +19,7 @@ impl IntervalSet {
     /// Attempts to inserts an interval and returns whether it could be
     /// inserted.
     pub fn insert(&mut self, interval: Range<usize>) -> Result<()> {
-        let x = normalize(interval);
+        let x = normalize(interval.clone());
         if x.is_empty() {
             bail!("empty interval");
         }
@@ -33,7 +33,7 @@ impl IntervalSet {
         let before = &self.intervals[i - 1];
         let gap = before.end..after.start;
         if !(gap.start <= x.start && x.end <= gap.end) {
-            bail!("not disjoint");
+            bail!("not disjoint: {interval:?} in {:?}", self.intervals);
         }
         if gap.start < x.start && x.end < gap.end {
             self.intervals.insert(i, x);

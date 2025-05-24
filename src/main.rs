@@ -25,7 +25,8 @@ fn main() {
         println!("{segment:?}");
         let data = &s1[segment.range()];
         let mut h = tar::Header::new_old();
-        h.set_path(format!("segments/{}", segment.path)).unwrap();
+        let path = segment.path.strip_prefix("/").unwrap_or(&segment.path);
+        h.set_path(format!("segments/{path}")).unwrap();
         h.set_mode(0o644);
         h.set_size(data.len() as _);
         h.set_cksum();
@@ -35,28 +36,26 @@ fn main() {
     for (i, block) in s1.chunks(512).enumerate() {
         let range = i * 512..i * 512 + block.len();
         chunks.clear();
-        segments.intervals.get_disjoint(range, &mut chunks);
-        for (j, chunk) in chunks.iter().enumerate() {
-            let chunk = &s1[chunk.clone()];
-            let typ = if chunk
-                .iter()
-                .all(|&b| matches!(b, 0x07..=0x0f | b' '..=b'~'))
-            {
+        segments.intervals.get_disjoint(range.clone(), &mut chunks);
+        for chunk in &chunks {
+            let data = &s1[chunk.clone()];
+            let typ = if data.iter().all(|&b| matches!(b, 0x07..=0x0f | b' '..=b'~')) {
                 "txt"
             } else {
                 "bin"
             };
-            let path = if chunks.len() == 1 {
+            let offset = chunk.start - range.start;
+            let path = if offset == 0 {
                 format!("blocks/block{i}.{typ}")
             } else {
-                format!("blocks/block{i}.{j}.{typ}")
+                format!("blocks/block{i}.{offset}.{typ}")
             };
             let mut h = tar::Header::new_old();
             h.set_path(path).unwrap();
             h.set_mode(0o644);
             h.set_size(chunk.len() as _);
             h.set_cksum();
-            tar.append(&h, chunk).unwrap();
+            tar.append(&h, data).unwrap();
         }
     }
 }
