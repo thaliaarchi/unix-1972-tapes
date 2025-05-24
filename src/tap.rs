@@ -70,7 +70,7 @@ impl Entry {
         let t = self.tmod();
         let seconds = t / 60;
         let frac = t % 60;
-        let since = Duration::new(seconds as _, (frac * (1_000_000_000 / 60)) as _);
+        let since = Duration::new(seconds as _, (frac as u64 * 1_000_000_000 / 60) as _);
 
         let epoch = Date::constant(1970 + epoch as i16, 1, 1);
         let epoch = epoch.to_zoned(TimeZone::UTC).unwrap();
