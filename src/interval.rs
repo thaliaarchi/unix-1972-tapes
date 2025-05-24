@@ -19,7 +19,7 @@ impl IntervalSet {
     /// Attempts to inserts an interval and returns whether it could be
     /// inserted.
     pub fn insert(&mut self, interval: Range<usize>) -> Result<()> {
-        let x = interval.start..interval.end.max(interval.start);
+        let x = normalize(interval);
         if x.is_empty() {
             bail!("empty interval");
         }
@@ -49,15 +49,38 @@ impl IntervalSet {
         }
         Ok(())
     }
+
+    pub fn get_disjoint(&self, interval: Range<usize>, out: &mut Vec<Range<usize>>) {
+        let mut x = normalize(interval);
+        let i = match self.intervals.binary_search_by(|y| y.end.cmp(&x.start)) {
+            Ok(i) => i + 1,
+            Err(i) => i,
+        };
+        for y in &self.intervals[i..] {
+            debug_assert!(y.end > x.start);
+            if x.start < y.start {
+                out.push(x.start..y.start.min(x.end));
+            }
+            x.start = y.end;
+            if x.start >= x.end {
+                break;
+            }
+        }
+    }
+}
+
+fn normalize(interval: Range<usize>) -> Range<usize> {
+    interval.start..interval.end.max(interval.start)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    const M: usize = usize::MAX;
+
     #[test]
     fn insert() {
-        const M: usize = usize::MAX;
         let tests = [
             (0..0, None),
             (0..1, Some(vec![0..3, 7..10, 20..M])),
@@ -83,6 +106,23 @@ mod tests {
                 expect,
                 "insert({interval:?})"
             );
+        }
+    }
+
+    #[test]
+    fn get_disjoint() {
+        let set = IntervalSet {
+            intervals: vec![0..0, 1..3, 7..10, 20..M],
+        };
+        let tests = [
+            (0..M, vec![0..1, 3..7, 10..20]),
+            (4..6, vec![4..6]),
+            (7..9, vec![]),
+        ];
+        for (interval, expect) in tests {
+            let mut got = Vec::new();
+            set.get_disjoint(interval.clone(), &mut got);
+            assert_eq!(got, expect, "get_disjoint({interval:?})");
         }
     }
 }

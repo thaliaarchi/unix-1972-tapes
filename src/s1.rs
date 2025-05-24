@@ -9,7 +9,7 @@ use crate::interval::IntervalSet;
 pub struct Segments<'s> {
     data: &'s [u8],
     pub segments: Vec<Segment>,
-    intervals: IntervalSet,
+    pub intervals: IntervalSet,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
