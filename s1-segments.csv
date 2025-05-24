@@ -7,12 +7,13 @@ Path,Offset,Length
 /usr/source/s1/df.s,71680,827
 /usr/source/s1/du.s,72704,1963
 /usr/source/s1/fc.c,74752,1836
-# Not in V5
+# Not in V5 and no V2 manpage
 /usr/source/s1/fstrip.s,76800,2512
 /usr/source/s1/dc5.s,79360,5516
 # Not in V5
 /usr/source/s1/colon.s,84992,34
-/usr/source/s1/ac.s,85504,4506
+# Named acct in comment and V2 manpage, but ac in V5
+/usr/source/s1/acct.s,85504,4506
 /usr/source/s1/dc4.s,90112,5386
 /usr/source/s1/bas0.s,99328,3623
 /usr/source/s1/getty.s,103424,2177
