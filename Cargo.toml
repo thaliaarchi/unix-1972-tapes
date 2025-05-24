@@ -10,7 +10,7 @@ categories = ["encoding"]
 
 [dependencies]
 anyhow = "1.0.98"
+csv = "1.3.1"
 jiff = { version = "0.2.14", default-features = false, features = ["perf-inline"] }
-json5 = "0.4.1"
 serde = { version = "1.0.219", features = ["derive"] }
 tar = "0.4.44"

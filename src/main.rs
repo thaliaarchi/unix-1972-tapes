@@ -16,13 +16,18 @@ fn main() {
     }
 
     let s1 = fs::read("s1-bits").unwrap();
-    let json = fs::read_to_string("s1-segments.json").unwrap();
 
+    let mut csv = csv::ReaderBuilder::new()
+        .comment(Some(b'#'))
+        .from_path("s1-segments.csv")
+        .unwrap();
     let mut segments = Segments::new(&s1);
-    segments.insert_json(&json).unwrap();
+    for res in csv.deserialize() {
+        segments.insert(res.unwrap()).unwrap();
+    }
+
     let mut tar = tar::Builder::new(File::create("s1-segments.tar").unwrap());
     for segment in segments.segments {
-        println!("{segment:?}");
         let data = &s1[segment.range()];
         let mut h = tar::Header::new_old();
         let path = segment.path.strip_prefix("/").unwrap_or(&segment.path);
