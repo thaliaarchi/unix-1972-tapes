@@ -1,6 +1,6 @@
 use std::fs::{self, File};
 
-use unix_1972_bits::{s1::Segments, tap::Entry};
+use unix_1972_bits::{block::segment_blocks, s1::Segments, tap::Entry};
 
 fn main() {
     let s2 = fs::read("s2-bits").unwrap();
@@ -59,4 +59,9 @@ fn main() {
         }
     }
     println!("{:?}", segments.intervals);
+
+    let segments = segment_blocks(&s1, 512);
+    for segment in segments {
+        println!("{segment:?}");
+    }
 }
