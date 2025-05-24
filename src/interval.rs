@@ -1,5 +1,7 @@
 use std::ops::Range;
 
+use anyhow::{Result, bail};
+
 /// A set of disjoint `Range<usize>` intervals.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IntervalSet {
@@ -16,22 +18,22 @@ impl IntervalSet {
 
     /// Attempts to inserts an interval and returns whether it could be
     /// inserted.
-    pub fn insert(&mut self, interval: Range<usize>) -> bool {
+    pub fn insert(&mut self, interval: Range<usize>) -> Result<()> {
         let x = interval.start..interval.end.max(interval.start);
         if x.is_empty() {
-            return false;
+            bail!("empty interval");
         }
         let i = match self.intervals.binary_search_by(|y| y.end.cmp(&x.start)) {
             Ok(i) => i + 1,
             Err(i) => i,
         };
         let Some(after) = self.intervals.get(i) else {
-            return false;
+            bail!("out of bounds");
         };
         let before = &self.intervals[i - 1];
         let gap = before.end..after.start;
         if !(gap.start <= x.start && x.end <= gap.end) {
-            return false;
+            bail!("not disjoint");
         }
         if gap.start < x.start && x.end < gap.end {
             self.intervals.insert(i, x);
@@ -45,7 +47,7 @@ impl IntervalSet {
         } else {
             unreachable!();
         }
-        true
+        Ok(())
     }
 }
 
@@ -71,12 +73,16 @@ mod tests {
             (20..20, None),
             (M..M, None),
         ];
-        for (range, res) in tests {
-            let mut s = IntervalSet {
+        for (interval, expect) in tests {
+            let mut set = IntervalSet {
                 intervals: vec![0..0, 1..3, 7..10, 20..M],
             };
-            let inserted = s.insert(range.clone());
-            assert_eq!(inserted.then(|| s.intervals), res, "insert({range:?})");
+            let inserted = set.insert(interval.clone());
+            assert_eq!(
+                inserted.ok().map(|()| set.intervals),
+                expect,
+                "insert({interval:?})"
+            );
         }
     }
 }
