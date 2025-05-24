@@ -63,7 +63,8 @@ pub fn segment_blocks<'a>(data: &'a [u8], block_size: usize) -> Vec<Segment<'a>>
                     break;
                 }
             }
-            if eq_index != block.len() {
+            // Apparent copies of length 1 or 2 are usually false positives.
+            if eq_index + 2 < block.len() {
                 let split = offsets.start + eq_index;
                 if start_offset != split {
                     segments.push(Segment {
