@@ -1,35 +1,38 @@
 # Absolute paths follow the directory structure of V5.
 # Relative paths are unknown.
 Path,Offset,Length
-/usr/source/s1/ed2.s,50176,2048
-/usr/source/s1/ed3.s,52224,4608
-/usr/source/s1/glob.c,56832,3072
-init.s,59904,2560
-/usr/source/s1/ldx.s,62464,2048
+/usr/source/s1/ed2.s,50176,1834
+/usr/source/s1/ed3.s,52224,4414
+/usr/source/s1/glob.c,56832,2994
+init.s,59904,2506
+/usr/source/s1/ldx.s,62464,1546
+# TODO: trim
 /usr/source/s1/ld2.s,64512,7168
-df.s,71680,1024
-dusg.s,72704,2048
-/usr/source/s1/fc.c,74752,2048
-fstrip.s,76800,2560
-/usr/source/s1/dc5.s,79360,6144
-acct.s,85504,4608
-/usr/source/s1/dc4.s,90112,5632
+df.s,71680,827
+dusg.s,72704,1963
+/usr/source/s1/fc.c,74752,1836
+fstrip.s,76800,2512
+/usr/source/s1/dc5.s,79360,5516
+acct.s,85504,4506
+/usr/source/s1/dc4.s,90112,5386
+# TODO: trim
 /usr/source/s1/bas1.s,95744,3584
-/usr/source/s1/bas0.s,99328,4096
-/usr/source/s1/getty.s,103424,2560
-/usr/source/s1/ld1.s,105984,6656
+/usr/source/s1/bas0.s,99328,3623
+/usr/source/s1/getty.s,103424,2177
+/usr/source/s1/ld1.s,105984,6327
+# TODO: trim
 /usr/source/s1/dc3.s,112640,10752
-ls.s,123392,7168
-login.s,130560,3584
-date.s,134144,1536
+ls.s,123392,6658
+login.s,130560,3436
+date.s,134144,1376
+# TODO: trim
 /usr/source/s1/as29.s,135680,4096
-cmp.s,139776,1536
-/usr/source/s1/as28.s,141312,1024
-cat.s,142336,1024
-/usr/source/s1/dsw.s,143360,1024
-/usr/source/s1/as27.s,144384,3072
-ln.s,147456,512
-# Copied portions have been removed for these segments:
+cmp.s,139776,1418
+/usr/source/s1/as28.s,141312,948
+cat.s,142336,647
+/usr/source/s1/dsw.s,143360,1010
+/usr/source/s1/as27.s,144384,2822
+ln.s,147456,465
 /usr/source/s1/as26.s,147968,4854
 copy,152822,266
 /usr/source/s1/chown.s,153088,1091
