@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     ffi::OsStr,
     fs::{self, File},
     os::unix::ffi::OsStrExt,
@@ -17,10 +18,11 @@ fn main() {
         &s1,
         Some(Path::new("s1-segments.csv")),
         Path::new("s1-segments.tar"),
+        false,
     );
 
     let s2 = fs::read("s2-bits").unwrap();
-    segment_tape(&s2, None, Path::new("s2-segments.tar"));
+    segment_tape(&s2, None, Path::new("s2-segments.tar"), false);
     let mut tar = tar::Builder::new(File::create("s2-files.tar").unwrap());
     for chunk in s2.chunks_exact(64) {
         if let Some(file) = Header::parse(chunk.try_into().unwrap()) {
@@ -30,7 +32,7 @@ fn main() {
     }
 }
 
-fn segment_tape(tape: &[u8], csv_path: Option<&Path>, tar_path: &Path) {
+fn segment_tape(tape: &[u8], csv_path: Option<&Path>, tar_path: &Path, include_residue: bool) {
     let mut segmenter = Segmenter::new(tape, 512);
 
     for chunk in tape.chunks_exact(64) {
@@ -56,7 +58,9 @@ fn segment_tape(tape: &[u8], csv_path: Option<&Path>, tar_path: &Path) {
 
     segmenter.segment_blocks();
     let mut tar = tar::Builder::new(File::create(tar_path).unwrap());
-    for segment in &segmenter.segments {
+    let mut i = 0;
+    while i < segmenter.segments.len() {
+        let segment = &segmenter.segments[i];
         let mut h = tar::Header::new_old();
         if let Some(file) = segmenter.headers.get(&segment.offset) {
             if file.len != segment.data.len() {
@@ -81,9 +85,26 @@ fn segment_tape(tape: &[u8], csv_path: Option<&Path>, tar_path: &Path) {
             let path = format!("segments/{}{kind}.{ext}", segment.offset);
             h.set_path(path).unwrap();
         }
+        let data = if include_residue
+            && segment.kind == SegmentKind::Original
+            && let Some(next_segment) = segmenter.segments.get(i + 1)
+            && next_segment.kind == SegmentKind::Residue
+        {
+            i += 1;
+            const DELIM: &[u8] = b"[SPLIT]";
+            let mut data =
+                Vec::with_capacity(segment.data.len() + DELIM.len() + next_segment.data.len());
+            data.extend_from_slice(segment.data);
+            data.extend_from_slice(DELIM);
+            data.extend_from_slice(next_segment.data);
+            Cow::Owned(data)
+        } else {
+            Cow::Borrowed(segment.data)
+        };
         h.set_mode(0o644);
-        h.set_size(segment.data.len() as _);
+        h.set_size(data.len() as _);
         h.set_cksum();
-        tar.append(&h, segment.data).unwrap();
+        tar.append(&h, &*data).unwrap();
+        i += 1;
     }
 }
