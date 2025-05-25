@@ -102,6 +102,19 @@ impl<'a> Segmenter<'a> {
             let block_end = (block_start + self.block_size).min(self.tape.len());
             let block = &self.tape[block_start..block_end];
 
+            if let Some(header) = self.header_for_offset(block_start) {
+                let range = header.range();
+                if segment_start != block_start {
+                    self.push(segment_start..block_start, SegmentKind::Original);
+                }
+                self.push(range.clone(), SegmentKind::Original);
+                block_start = range.end.next_multiple_of(self.block_size);
+                segment_start = block_start;
+                self.prev_block = &self.tape[block_start - self.block_size..block_start];
+                // TODO: Handle the residue.
+                continue;
+            }
+
             if detect_magic(block).is_some() {
                 if segment_start != block_start {
                     self.push(segment_start..block_start, SegmentKind::Original);

@@ -92,5 +92,5 @@ segment275968.c,275968,1252
 /bin/login,38400,1290
 /bin/ls,47616,2010
 
-# Untested:
-/bin/tap,43008,385
+# Join the NUL segment
+/bin/tap,43008,3678
