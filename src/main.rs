@@ -8,7 +8,8 @@ use std::{
 
 use unix_1972_bits::{
     debug::{BlockLen, Bytes},
-    segment::{SegmentHeader, SegmentKind, Segmenter, is_text},
+    detect::{detect_magic, is_text},
+    segment::{SegmentHeader, SegmentKind, Segmenter},
     tap::Header,
 };
 
@@ -57,6 +58,7 @@ fn segment_tape(tape: &[u8], csv_path: Option<&Path>, tar_path: &Path, include_r
     }
 
     segmenter.segment_blocks();
+
     let mut tar = tar::Builder::new(File::create(tar_path).unwrap());
     let mut i = 0;
     while i < segmenter.segments().len() {
@@ -85,6 +87,21 @@ fn segment_tape(tape: &[u8], csv_path: Option<&Path>, tar_path: &Path, include_r
             let path = format!("segments/{}{kind}.{ext}", segment.offset);
             h.set_path(path).unwrap();
         }
+        println!(
+            "offset {:6} | len {:5} | {:8} | {} | {:11} | {:?}",
+            segment.offset,
+            segment.data.len(),
+            format!("{:?}", segment.kind),
+            if is_text(segment.data) {
+                "text"
+            } else {
+                "bin "
+            },
+            detect_magic(segment.data)
+                .map(|m| format!("{m:?}"))
+                .unwrap_or("none".to_owned()),
+            Bytes(&h.path_bytes()),
+        );
         let data = if include_residue
             && segment.kind == SegmentKind::Original
             && let Some(next_segment) = segmenter.segments().get(i + 1)

@@ -5,6 +5,7 @@ use serde::Deserialize;
 
 use crate::{
     debug::{BlockLen, Bytes},
+    detect::is_text,
     interval::IntervalSet,
 };
 
@@ -211,8 +212,4 @@ impl fmt::Debug for SegmentHeader {
             .field("len", &self.len)
             .finish()
     }
-}
-
-pub fn is_text(data: &[u8]) -> bool {
-    data.iter().all(|&b| matches!(b, 0x07..=0x0f | b' '..=b'~'))
 }
