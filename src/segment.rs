@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt, ops::Range};
+use std::{fmt, ops::Range};
 
 use anyhow::{Result, bail};
 use serde::Deserialize;
@@ -12,8 +12,8 @@ pub struct Segmenter<'a> {
     tape: &'a [u8],
     block_size: usize,
     prev_block: &'a [u8],
-    pub segments: Vec<Segment<'a>>,
-    pub headers: HashMap<usize, SegmentHeader>,
+    segments: Vec<Segment<'a>>,
+    headers: Vec<Option<SegmentHeader>>,
     header_intervals: IntervalSet,
 }
 
@@ -49,18 +49,37 @@ impl<'a> Segmenter<'a> {
             block_size,
             prev_block: &[],
             segments: Vec::new(),
-            headers: HashMap::new(),
+            headers: vec![None; tape.len().div_ceil(block_size)],
             header_intervals: IntervalSet::new(0..tape.len()),
         }
     }
 
     pub fn add_header(&mut self, header: SegmentHeader) -> Result<()> {
-        if header.offset % self.block_size != 0 {
+        let offset = header.offset;
+        if offset % self.block_size != 0 {
             bail!("header is not block-aligned");
         }
         self.header_intervals.insert(header.range())?;
-        assert!(self.headers.insert(header.offset, header).is_none());
+        self.headers[offset / self.block_size] = Some(header);
         Ok(())
+    }
+
+    #[track_caller]
+    pub fn header_for_offset(&self, offset: usize) -> Option<&SegmentHeader> {
+        if offset % self.block_size == 0 && offset < self.tape.len() {
+            self.headers[offset / self.block_size].as_ref()
+        } else {
+            None
+        }
+    }
+
+    #[track_caller]
+    pub fn header_for_block(&self, block: usize) -> Option<&SegmentHeader> {
+        self.headers[block].as_ref()
+    }
+
+    pub fn segments(&self) -> &[Segment<'a>] {
+        &self.segments
     }
 
     /// Partitions a tape into segments which are likely to be files.
@@ -150,7 +169,7 @@ impl<'a> Segmenter<'a> {
                 break;
             }
             end += self.block_size;
-            if self.headers.contains_key(&end) {
+            if self.header_for_offset(end).is_some() {
                 break;
             }
         }

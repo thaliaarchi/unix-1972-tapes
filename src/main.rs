@@ -59,10 +59,10 @@ fn segment_tape(tape: &[u8], csv_path: Option<&Path>, tar_path: &Path, include_r
     segmenter.segment_blocks();
     let mut tar = tar::Builder::new(File::create(tar_path).unwrap());
     let mut i = 0;
-    while i < segmenter.segments.len() {
-        let segment = &segmenter.segments[i];
+    while i < segmenter.segments().len() {
+        let segment = &segmenter.segments()[i];
         let mut h = tar::Header::new_old();
-        if let Some(file) = segmenter.headers.get(&segment.offset) {
+        if let Some(file) = segmenter.header_for_offset(segment.offset) {
             if file.len != segment.data.len() {
                 eprintln!(
                     "segment {:?} at offset {} has length {}; expected {}",
@@ -87,7 +87,7 @@ fn segment_tape(tape: &[u8], csv_path: Option<&Path>, tar_path: &Path, include_r
         }
         let data = if include_residue
             && segment.kind == SegmentKind::Original
-            && let Some(next_segment) = segmenter.segments.get(i + 1)
+            && let Some(next_segment) = segmenter.segments().get(i + 1)
             && next_segment.kind == SegmentKind::Residue
         {
             i += 1;
