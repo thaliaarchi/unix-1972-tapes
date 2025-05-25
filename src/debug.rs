@@ -20,3 +20,22 @@ impl fmt::Debug for Bytes<'_> {
         f.write_char('"')
     }
 }
+
+pub struct BlockLen(pub usize);
+
+impl fmt::Debug for BlockLen {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let len = self.0;
+        if len % 512 == 0 && len > 512 {
+            write!(f, "{len} ({} * 512)", len / 512)
+        } else {
+            write!(f, "{len}")
+        }
+    }
+}
+
+impl fmt::Display for BlockLen {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}

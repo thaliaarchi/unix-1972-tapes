@@ -6,7 +6,7 @@ use std::{
 
 use unix_1972_bits::{
     block::{SegmentKind, Segmenter},
-    debug::Bytes,
+    debug::{BlockLen, Bytes},
     tap::Header,
 };
 
@@ -43,8 +43,8 @@ fn main() {
                     "segment {:?} at offset {} has length {}; expected {}",
                     Bytes(&named.path),
                     segment.offset,
-                    segment.data.len(),
-                    named.len,
+                    BlockLen(segment.data.len()),
+                    BlockLen(named.len),
                 );
             }
             let path = (named.path.strip_prefix(b"/")).unwrap_or(&named.path);

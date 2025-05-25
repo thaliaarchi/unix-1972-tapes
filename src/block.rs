@@ -1,8 +1,12 @@
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, ops::Range};
 
 use anyhow::Result;
 
-use crate::{debug::Bytes, interval::IntervalSet, s1::FileSegment};
+use crate::{
+    debug::{BlockLen, Bytes},
+    interval::IntervalSet,
+    s1::FileSegment,
+};
 
 pub struct Segmenter<'a> {
     tape: &'a [u8],
@@ -55,34 +59,27 @@ impl<'a> Segmenter<'a> {
     /// for common tails, file boundaries can be quite accurately identified.
     pub fn segment_blocks(&mut self) {
         let mut segment_start = 0;
-
-        for block_start in (0..self.tape.len()).step_by(self.block_size) {
+        let mut block_start = 0;
+        while block_start < self.tape.len() {
             let block_end = (block_start + self.block_size).min(self.tape.len());
             let block = &self.tape[block_start..block_end];
 
             // Check for all NULL or all 0xFF.
-            let special = if block.iter().all(|&b| b == 0) {
-                Some(SegmentKind::AllNul)
-            } else if block.iter().all(|&b| b == 0xFF) {
-                Some(SegmentKind::AllFF)
+            let uniform = if let Some(end) = self.check_uniform(block_start, 0) {
+                Some((end, SegmentKind::AllNul))
+            } else if let Some(end) = self.check_uniform(block_start, 0xFF) {
+                Some((end, SegmentKind::AllFF))
             } else {
                 None
             };
-            if let Some(kind) = special {
+            if let Some((uniform_end, kind)) = uniform {
                 if segment_start != block_start {
-                    self.segments.push(Segment {
-                        data: &self.tape[segment_start..block_start],
-                        offset: segment_start,
-                        kind: SegmentKind::Original,
-                    });
+                    self.push(segment_start..block_start, SegmentKind::Original);
                 }
-                self.segments.push(Segment {
-                    data: block,
-                    offset: block_start,
-                    kind,
-                });
-                segment_start = block_end;
-                self.prev_block = block;
+                self.push(block_start..uniform_end, kind);
+                self.prev_block = &self.tape[uniform_end - self.block_size..uniform_end];
+                segment_start = uniform_end;
+                block_start = uniform_end;
                 continue;
             }
 
@@ -99,31 +96,43 @@ impl<'a> Segmenter<'a> {
                 if eq_index + 2 < block.len() {
                     let split = block_start + eq_index;
                     if segment_start != split {
-                        self.segments.push(Segment {
-                            data: &self.tape[segment_start..split],
-                            offset: segment_start,
-                            kind: SegmentKind::Original,
-                        });
+                        self.push(segment_start..split, SegmentKind::Original);
                     }
-                    self.segments.push(Segment {
-                        data: &self.tape[split..block_end],
-                        offset: split,
-                        kind: SegmentKind::Copy,
-                    });
+                    self.push(split..block_end, SegmentKind::Copy);
                     segment_start = block_end;
                 }
             }
 
             self.prev_block = block;
+            block_start += self.block_size;
         }
 
         if segment_start != self.tape.len() {
-            self.segments.push(Segment {
-                data: &self.tape[segment_start..],
-                offset: segment_start,
-                kind: SegmentKind::Original,
-            });
+            self.push(segment_start..self.tape.len(), SegmentKind::Original);
         }
+    }
+
+    fn check_uniform(&mut self, block_start: usize, byte: u8) -> Option<usize> {
+        let mut end = block_start;
+        for block in self.tape[block_start..].chunks_exact(self.block_size) {
+            if !block.iter().all(|&b| b == byte) {
+                break;
+            }
+            end += self.block_size;
+            if self.headers.contains_key(&end) {
+                break;
+            }
+        }
+        (end != block_start).then_some(end)
+    }
+
+    #[track_caller]
+    fn push(&mut self, range: Range<usize>, kind: SegmentKind) {
+        self.segments.push(Segment {
+            data: &self.tape[range.clone()],
+            offset: range.start,
+            kind,
+        });
     }
 }
 
@@ -131,7 +140,7 @@ impl fmt::Debug for Segment<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Segment")
             .field("offset", &self.offset)
-            .field("len", &self.data.len())
+            .field("len", &BlockLen(self.data.len()))
             .field("kind", &self.kind)
             .field("data", &Bytes(&self.data))
             .finish()
