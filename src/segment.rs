@@ -145,15 +145,21 @@ impl<'a> Segmenter<'a> {
                         break;
                     }
                 }
+                let mut split = block_start + eq_index;
                 // Take back a LF from the residue, if it is a text segment
                 // which does not end with LF.
-                let mut split = block_start + eq_index;
                 if segment_start != split
                     && self.tape[split - 1] != b'\n'
                     && self.tape[split] == b'\n'
                     && is_text(&self.tape[segment_start..split])
                 {
                     split += 1;
+                }
+                // Join residue of all NUL, if it is surrounded by NUL.
+                else if block_end < self.tape.len()
+                    && self.tape[split - 1..block_end + 1].iter().all(|&b| b == 0)
+                {
+                    split = block_end;
                 }
                 // Only treat it as residue, if it is long enough. Apparent
                 // residue of length 1 or 2 is usually a false positive.
