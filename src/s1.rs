@@ -1,21 +1,21 @@
-use std::ops::Range;
+use std::{fmt, ops::Range};
 
 use anyhow::Result;
 use serde::Deserialize;
 
-use crate::interval::IntervalSet;
+use crate::{debug::Bytes, interval::IntervalSet};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Segments<'s> {
     data: &'s [u8],
-    pub segments: Vec<Segment>,
+    pub segments: Vec<FileSegment>,
     pub intervals: IntervalSet,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
-pub struct Segment {
-    #[serde(alias = "Path")]
-    pub path: String,
+#[derive(Clone, Deserialize, PartialEq, Eq)]
+pub struct FileSegment {
+    #[serde(alias = "Path", with = "serde_bytes")]
+    pub path: Vec<u8>,
     #[serde(alias = "Offset")]
     pub offset: usize,
     #[serde(alias = "Length", alias = "length")]
@@ -31,15 +31,25 @@ impl<'a> Segments<'a> {
         }
     }
 
-    pub fn insert(&mut self, segment: Segment) -> Result<()> {
+    pub fn insert(&mut self, segment: FileSegment) -> Result<()> {
         self.intervals.insert(segment.range())?;
         self.segments.push(segment);
         Ok(())
     }
 }
 
-impl Segment {
+impl FileSegment {
     pub fn range(&self) -> Range<usize> {
         self.offset..self.offset + self.len
+    }
+}
+
+impl fmt::Debug for FileSegment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FileSegment")
+            .field("path", &Bytes(&self.path))
+            .field("offset", &self.offset)
+            .field("len", &self.len)
+            .finish()
     }
 }

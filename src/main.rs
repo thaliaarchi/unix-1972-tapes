@@ -1,12 +1,15 @@
 use std::{
     collections::HashMap,
+    ffi::OsStr,
     fs::{self, File},
+    os::unix::ffi::OsStrExt,
 };
 
 use unix_1972_bits::{
     block::{SegmentKind, segment_blocks},
+    debug::Bytes,
     interval::IntervalSet,
-    s1::Segment,
+    s1::FileSegment,
     tap::Header,
 };
 
@@ -32,9 +35,9 @@ fn main() {
     let mut intervals = IntervalSet::new(0..s1.len());
     let mut by_offset = HashMap::new();
     for res in csv.deserialize() {
-        let segment: Segment = res.unwrap();
-        intervals.insert(segment.range()).unwrap();
-        if by_offset.insert(segment.offset, segment).is_some() {
+        let file: FileSegment = res.unwrap();
+        intervals.insert(file.range()).unwrap();
+        if by_offset.insert(file.offset, file).is_some() {
             panic!("duplicate offset");
         }
     }
@@ -43,19 +46,18 @@ fn main() {
     let mut tar = tar::Builder::new(File::create("s1-segments.tar").unwrap());
     for segment in segments {
         let mut h = tar::Header::new_old();
-        let path = if let Some(named) = by_offset.remove(&segment.offset) {
+        if let Some(named) = by_offset.remove(&segment.offset) {
             if named.len != segment.data.len() {
                 eprintln!(
-                    "segment {} at offset {} has length {}; expected {}",
-                    named.path,
+                    "segment {:?} at offset {} has length {}; expected {}",
+                    Bytes(&named.path),
                     segment.offset,
                     segment.data.len(),
                     named.len,
                 );
             }
-            (named.path.strip_prefix("/"))
-                .map(|p| p.to_owned())
-                .unwrap_or(named.path)
+            let path = (named.path.strip_prefix(b"/")).unwrap_or(&named.path);
+            h.set_path(OsStr::from_bytes(path)).unwrap();
         } else {
             let ext = if segment
                 .data
@@ -72,9 +74,9 @@ fn main() {
                 SegmentKind::AllNul => ".nul",
                 SegmentKind::AllFF => ".ff",
             };
-            format!("segments/{}{kind}.{ext}", segment.offset)
-        };
-        h.set_path(path).unwrap();
+            let path = format!("segments/{}{kind}.{ext}", segment.offset);
+            h.set_path(path).unwrap();
+        }
         h.set_mode(0o644);
         h.set_size(segment.data.len() as _);
         h.set_cksum();

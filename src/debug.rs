@@ -1,6 +1,6 @@
 use std::fmt::{self, Write};
 
-pub(crate) struct Bytes<'a>(pub &'a [u8]);
+pub struct Bytes<'a>(pub &'a [u8]);
 
 impl fmt::Debug for Bytes<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
