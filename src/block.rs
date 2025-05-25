@@ -64,7 +64,7 @@ impl<'a> Segmenter<'a> {
             let block_end = (block_start + self.block_size).min(self.tape.len());
             let block = &self.tape[block_start..block_end];
 
-            // Check for all NULL or all 0xFF.
+            // Check for blocks that are all NUL or all 0xFF.
             let uniform = if let Some(end) = self.check_uniform(block_start, 0) {
                 Some((end, SegmentKind::AllNul))
             } else if let Some(end) = self.check_uniform(block_start, 0xFF) {
@@ -74,6 +74,14 @@ impl<'a> Segmenter<'a> {
             };
             if let Some((uniform_end, kind)) = uniform {
                 if segment_start != block_start {
+                    // Join NUL blocks surrounded by zeros.
+                    if kind == SegmentKind::AllNul
+                        && self.tape.get(block_start.wrapping_sub(1)) == Some(&0)
+                        && self.tape.get(uniform_end) == Some(&0)
+                    {
+                        block_start = uniform_end;
+                        continue;
+                    }
                     self.push(segment_start..block_start, SegmentKind::Original);
                 }
                 self.push(block_start..uniform_end, kind);
