@@ -110,9 +110,14 @@ impl Header {
         u16::from_le_bytes(self.block)
     }
 
+    /// The byte offset in the tap file of the start of the file.
+    pub fn offset(&self) -> usize {
+        (self.block() as usize) * 512
+    }
+
     /// The byte offsets in the tap file of the file contents.
     pub fn range(&self) -> Range<usize> {
-        let offset = (self.block() as usize) * 512;
+        let offset = self.offset();
         offset..offset + self.size() as usize
     }
 
