@@ -73,5 +73,6 @@ segment275968.c,275968,1252
 /usr/source/s1/as15.s,200192,1551
 /usr/source/s1/as14.s,214016,2257
 /usr/source/s1/cp.c,242688,920
+# Take the missing LF from the residue
 /usr/source/s1/form2.s,261632,1019
 /usr/source/s1/form4.s,264704,2820

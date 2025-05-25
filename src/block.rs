@@ -27,7 +27,7 @@ pub struct Segment<'a> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SegmentKind {
     Original,
-    Copy,
+    Residue,
     AllNul,
     AllFF,
 }
@@ -100,13 +100,23 @@ impl<'a> Segmenter<'a> {
                         break;
                     }
                 }
-                // Apparent copies of length 1 or 2 are usually false positives.
-                if eq_index + 2 < block.len() {
-                    let split = block_start + eq_index;
+                // Take back a LF from the residue, if it is a text segment
+                // which does not end with LF.
+                let mut split = block_start + eq_index;
+                if segment_start != split
+                    && self.tape[split - 1] != b'\n'
+                    && self.tape[split] == b'\n'
+                    && is_text(&self.tape[segment_start..split])
+                {
+                    split += 1;
+                }
+                // Only treat it as residue, if it is long enough. Apparent
+                // residue of length 1 or 2 is usually a false positive.
+                if split + 2 < block_end {
                     if segment_start != split {
                         self.push(segment_start..split, SegmentKind::Original);
                     }
-                    self.push(split..block_end, SegmentKind::Copy);
+                    self.push(split..block_end, SegmentKind::Residue);
                     segment_start = block_end;
                 }
             }
@@ -153,4 +163,8 @@ impl fmt::Debug for Segment<'_> {
             .field("data", &Bytes(&self.data))
             .finish()
     }
+}
+
+pub fn is_text(data: &[u8]) -> bool {
+    data.iter().all(|&b| matches!(b, 0x07..=0x0f | b' '..=b'~'))
 }

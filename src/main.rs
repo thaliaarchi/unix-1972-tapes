@@ -6,7 +6,7 @@ use std::{
 };
 
 use unix_1972_bits::{
-    block::{SegmentKind, Segmenter},
+    block::{SegmentKind, Segmenter, is_text},
     debug::{BlockLen, Bytes},
     s1::FileSegment,
     tap::Header,
@@ -72,18 +72,10 @@ fn segment_tape(tape: &[u8], csv_path: Option<&Path>, tar_path: &Path) {
             let path = file.path.strip_prefix(b"/").unwrap_or(&file.path);
             h.set_path(OsStr::from_bytes(path)).unwrap();
         } else {
-            let ext = if segment
-                .data
-                .iter()
-                .all(|&b| matches!(b, 0x07..=0x0f | b' '..=b'~'))
-            {
-                "txt"
-            } else {
-                "bin"
-            };
+            let ext = if is_text(segment.data) { "txt" } else { "bin" };
             let kind = match segment.kind {
                 SegmentKind::Original => "",
-                SegmentKind::Copy => ".copy",
+                SegmentKind::Residue => ".copy",
                 SegmentKind::AllNul => ".nul",
                 SegmentKind::AllFF => ".ff",
             };
