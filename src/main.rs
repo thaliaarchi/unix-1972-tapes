@@ -7,7 +7,7 @@ use unix_1972_bits::{
     block::{SegmentKind, segment_blocks},
     interval::IntervalSet,
     s1::Segment,
-    tap::Entry,
+    tap::Header,
 };
 
 fn main() {
@@ -15,11 +15,11 @@ fn main() {
 
     let mut tar = tar::Builder::new(File::create("s2-files.tar").unwrap());
     for (i, chunk) in s2.chunks_exact(64).enumerate() {
-        if let Some(entry) = Entry::parse(chunk.try_into().unwrap()) {
+        if let Some(file) = Header::parse(chunk.try_into().unwrap()) {
             let start = i * 64;
-            println!("{start}: {entry:?}");
-            let data = &s2[entry.range()];
-            tar.append(&entry.to_tar_header(), data).unwrap();
+            println!("{start}: {file:?}");
+            let data = &s2[file.range()];
+            tar.append(&file.to_tar_header(), data).unwrap();
         }
     }
 
