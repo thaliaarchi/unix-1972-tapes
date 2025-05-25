@@ -84,3 +84,13 @@ segment275968.c,275968,1252
 /usr/source/s1/form2.s,261632,1019
 # Has 1 LF, V5 ends the same, residue has 1 LF
 /usr/source/s1/form4.s,264704,2820
+
+# Binaries:
+
+# Round size up to even:
+/etc/getty,34816,446
+/bin/login,38400,1290
+/bin/ls,47616,2010
+
+# Untested:
+/bin/tap,43008,385

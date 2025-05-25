@@ -1,11 +1,11 @@
-use std::{fmt, ops::Range};
+use std::{collections::HashSet, fmt, ops::Range};
 
 use anyhow::{Result, bail};
 use serde::Deserialize;
 
 use crate::{
     debug::{BlockLen, Bytes},
-    detect::is_text,
+    detect::{detect_magic, is_text},
     interval::IntervalSet,
 };
 
@@ -16,6 +16,7 @@ pub struct Segmenter<'a> {
     segments: Vec<Segment<'a>>,
     headers: Vec<Option<SegmentHeader>>,
     header_intervals: IntervalSet,
+    paths: HashSet<Vec<u8>>,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -52,6 +53,7 @@ impl<'a> Segmenter<'a> {
             segments: Vec::new(),
             headers: vec![None; tape.len().div_ceil(block_size)],
             header_intervals: IntervalSet::new(0..tape.len()),
+            paths: HashSet::new(),
         }
     }
 
@@ -61,6 +63,9 @@ impl<'a> Segmenter<'a> {
             bail!("header is not block-aligned");
         }
         self.header_intervals.insert(header.range())?;
+        if !self.paths.insert(header.path.clone()) {
+            bail!("duplicate path: {:?}", Bytes(&header.path));
+        }
         self.headers[offset / self.block_size] = Some(header);
         Ok(())
     }
@@ -96,6 +101,13 @@ impl<'a> Segmenter<'a> {
         while block_start < self.tape.len() {
             let block_end = (block_start + self.block_size).min(self.tape.len());
             let block = &self.tape[block_start..block_end];
+
+            if detect_magic(block).is_some() {
+                if segment_start != block_start {
+                    self.push(segment_start..block_start, SegmentKind::Original);
+                }
+                segment_start = block_start;
+            }
 
             // Check for blocks that are all NUL or all 0xFF.
             let uniform = if let Some(end) = self.check_uniform(block_start, 0) {
