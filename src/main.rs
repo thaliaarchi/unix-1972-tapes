@@ -6,9 +6,8 @@ use std::{
 };
 
 use unix_1972_bits::{
-    block::{SegmentKind, Segmenter, is_text},
     debug::{BlockLen, Bytes},
-    s1::FileSegment,
+    segment::{SegmentHeader, SegmentKind, Segmenter, is_text},
     tap::Header,
 };
 
@@ -36,7 +35,7 @@ fn segment_tape(tape: &[u8], csv_path: Option<&Path>, tar_path: &Path) {
 
     for chunk in tape.chunks_exact(64) {
         if let Some(h) = Header::parse(chunk.try_into().unwrap()) {
-            let file = FileSegment {
+            let file = SegmentHeader {
                 path: h.path().into(),
                 offset: h.offset(),
                 len: h.size() as _,

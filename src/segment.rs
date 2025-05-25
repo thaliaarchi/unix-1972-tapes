@@ -1,11 +1,11 @@
 use std::{collections::HashMap, fmt, ops::Range};
 
-use anyhow::Result;
+use anyhow::{Result, bail};
+use serde::Deserialize;
 
 use crate::{
     debug::{BlockLen, Bytes},
     interval::IntervalSet,
-    s1::FileSegment,
 };
 
 pub struct Segmenter<'a> {
@@ -13,7 +13,7 @@ pub struct Segmenter<'a> {
     block_size: usize,
     prev_block: &'a [u8],
     pub segments: Vec<Segment<'a>>,
-    pub headers: HashMap<usize, FileSegment>,
+    pub headers: HashMap<usize, SegmentHeader>,
     header_intervals: IntervalSet,
 }
 
@@ -32,6 +32,16 @@ pub enum SegmentKind {
     AllFF,
 }
 
+#[derive(Clone, Deserialize, PartialEq, Eq)]
+pub struct SegmentHeader {
+    #[serde(alias = "Path", with = "serde_bytes")]
+    pub path: Vec<u8>,
+    #[serde(alias = "Offset")]
+    pub offset: usize,
+    #[serde(alias = "Length", alias = "length")]
+    pub len: usize,
+}
+
 impl<'a> Segmenter<'a> {
     pub fn new(tape: &'a [u8], block_size: usize) -> Self {
         Segmenter {
@@ -44,7 +54,10 @@ impl<'a> Segmenter<'a> {
         }
     }
 
-    pub fn add_header(&mut self, header: FileSegment) -> Result<()> {
+    pub fn add_header(&mut self, header: SegmentHeader) -> Result<()> {
+        if header.offset % self.block_size != 0 {
+            bail!("header is not block-aligned");
+        }
         self.header_intervals.insert(header.range())?;
         assert!(self.headers.insert(header.offset, header).is_none());
         Ok(())
@@ -161,6 +174,22 @@ impl fmt::Debug for Segment<'_> {
             .field("len", &BlockLen(self.data.len()))
             .field("kind", &self.kind)
             .field("data", &Bytes(&self.data))
+            .finish()
+    }
+}
+
+impl SegmentHeader {
+    pub fn range(&self) -> Range<usize> {
+        self.offset..self.offset + self.len
+    }
+}
+
+impl fmt::Debug for SegmentHeader {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SegmentHeader")
+            .field("path", &Bytes(&self.path))
+            .field("offset", &self.offset)
+            .field("len", &self.len)
             .finish()
     }
 }
