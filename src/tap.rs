@@ -2,11 +2,12 @@
 //!
 //! Follows the logic of tapfs from Plan 9 ([dmr's email](https://www.tuhs.org/Archive/Distributions/Research/1972_stuff/dmr_plugin),
 //! Plan 9 from User Space [source](https://github.com/9fans/plan9port/blob/master/src/cmd/tapefs/tapfs.c)
-//! and [manpage](https://plan9.io/magic/man2html/4/tapefs)).
+//! and [manpage](https://plan9.io/magic/man2html/4/tapefs)) and the V1 stat
+//! translation in [Apout](https://github.com/DoctorWkt/Apout/blob/master/v1trap.c).
 
 #![warn(missing_docs)]
 
-use std::{ffi::OsStr, fmt, mem, ops::Range, os::unix::ffi::OsStrExt, time::Duration};
+use std::{ffi::OsStr, fmt, mem, ops::Range, os::unix::ffi::OsStrExt, time::Duration, u32};
 
 use jiff::{Timestamp, civil::Date, tz::TimeZone};
 
@@ -24,7 +25,7 @@ pub struct Header {
     pub uid: u8,
     /// The length of the file contents.
     pub size: [u8; 2],
-    /// The modification time in Unix V1 format as 1/60 seconds since an epoch.
+    /// The modification time in Unix V1 format.
     pub mtime: [u8; 4],
     /// The index of the 512-byte block which the file contents start at.
     pub block: [u8; 2],
@@ -34,11 +35,16 @@ pub struct Header {
     pub cksum: [u8; 2],
 }
 
-/// Permission bits for Unix V1.
+/// Permission bits in the Unix V1 format.
+pub struct Mode(pub u8);
+
+/// Timestamp in the Unix V1 format, i.e., 1/60 seconds since an [epoch](Epoch).
 ///
-/// Follows the logic of the translation of V1 stat in [Apout](https://github.com/DoctorWkt/Apout/blob/master/v1trap.c),
-/// restricted to permission bits.
-pub struct V1Mode(pub u8);
+/// > In the early version of UNIX, timestamps were in 1/60th second units. A
+/// > 32-bit counter using these units overflows in 2.5 years, so the epoch had
+/// > to be changed periodically, and I believe 1970, 1971, 1972 and 1973 were
+/// > all epochs at one stage or another. [[Warren Toomey](https://www.tuhs.org/Archive/Distributions/Research/1972_stuff/Readme)]
+pub struct Time(pub u32);
 
 /// The epoch of a Unix V1 timestamp.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -84,8 +90,8 @@ impl Header {
     }
 
     /// The permission bits.
-    pub fn mode(&self) -> V1Mode {
-        V1Mode(self.mode)
+    pub fn mode(&self) -> Mode {
+        Mode(self.mode)
     }
 
     /// The length of the file contents.
@@ -93,23 +99,10 @@ impl Header {
         u16::from_le_bytes(self.size)
     }
 
-    /// The modification time in Unix V1 format as 1/60 seconds since an epoch.
-    pub fn mtime(&self) -> u32 {
+    /// The modification time in the Unix V1 format.
+    pub fn mtime(&self) -> Time {
         let t = self.mtime;
-        (t[1] as u32) << 24 | (t[0] as u32) << 16 | (t[3] as u32) << 8 | (t[2] as u32) << 0
-    }
-
-    /// The modification time as a timestamp in the given epoch.
-    pub fn mtime_timestamp(&self, epoch: Epoch) -> Timestamp {
-        let t = self.mtime();
-        let seconds = t / 60;
-        let frac = t % 60;
-        let since = Duration::new(seconds as _, (frac as u64 * 1_000_000_000 / 60) as _);
-
-        let epoch = Date::constant(1970 + epoch as i16, 1, 1);
-        let epoch = epoch.to_zoned(TimeZone::UTC).unwrap();
-
-        epoch.timestamp() + since
+        Time((t[1] as u32) << 24 | (t[0] as u32) << 16 | (t[3] as u32) << 8 | (t[2] as u32) << 0)
     }
 
     /// The index of the 512-byte block which the file contents start at.
@@ -135,7 +128,7 @@ impl Header {
         h.set_mode(self.mode().to_posix() as _);
         h.set_uid(self.uid as _);
         h.set_size(self.size() as _);
-        h.set_mtime(self.mtime_timestamp(Epoch::Y1972).as_second() as _);
+        h.set_mtime(self.mtime().seconds(Epoch::Y1972) as _);
         h.set_cksum();
         h
     }
@@ -154,19 +147,12 @@ impl From<&[u8; 64]> for &Header {
 
 impl fmt::Debug for Header {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        struct MTime<'a>(&'a Header);
-        impl fmt::Debug for MTime<'_> {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                let h = self.0;
-                write!(f, "{} ({})", h.mtime(), h.mtime_timestamp(Epoch::Y1972))
-            }
-        }
         let mut s = f.debug_struct("Entry");
         s.field("path", &Bytes(self.path()));
         s.field("mode", &self.mode());
         s.field("uid", &self.uid);
         s.field("size", &self.size());
-        s.field("mtime", &MTime(&self));
+        s.field("mtime", &self.mtime());
         s.field("block", &self.block());
         if !self.unused.iter().all(|&b| b == 0) {
             s.field("unused", &Bytes(&self.unused));
@@ -200,9 +186,9 @@ mod mode {
     pub const POSIX_OTHER_EXEC: u16  = 0o000001;
 }
 
-impl V1Mode {
+impl Mode {
     /// Converts a POSIX mode to V1.
-    pub fn from_posix(mode: u16) -> V1Mode {
+    pub fn from_posix(mode: u16) -> Mode {
         use mode::*;
         let (posix, mut v1) = (mode, 0);
         if posix & POSIX_SET_UID != 0 {
@@ -223,7 +209,7 @@ impl V1Mode {
         if posix & (POSIX_GROUP_WRITE | POSIX_OTHER_WRITE) != 0 {
             v1 |= V1_WORLD_WRITE;
         }
-        V1Mode(v1)
+        Mode(v1)
     }
 
     /// Converts a V1 mode to POSIX.
@@ -252,8 +238,41 @@ impl V1Mode {
     }
 }
 
-impl fmt::Debug for V1Mode {
+impl fmt::Debug for Mode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:03o}", self.0)
     }
+}
+
+impl Time {
+    /// The time as a timestamp in the given epoch.
+    pub fn timestamp(&self, epoch: Epoch) -> Timestamp {
+        let seconds = self.0 / 60;
+        let frac = self.0 % 60;
+        let since = Duration::new(seconds as _, (frac as u64 * 1_000_000_000 / 60) as _);
+
+        let epoch = Date::constant(1970 + epoch as i16, 1, 1);
+        let epoch = epoch.to_zoned(TimeZone::UTC).unwrap();
+
+        epoch.timestamp() + since
+    }
+
+    /// The number of seconds since the 1970 Unix epoch.
+    pub fn seconds(&self, epoch: Epoch) -> u32 {
+        self.timestamp(epoch).as_second() as u32
+    }
+}
+
+impl fmt::Debug for Time {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} ({})", self.0, self.timestamp(Epoch::Y1972))
+    }
+}
+
+#[test]
+fn time_seconds_range() {
+    let min = Time(0).timestamp(Epoch::Y1970).as_second();
+    assert_eq!(min, 0);
+    let max = Time(u32::MAX).timestamp(Epoch::Y1973).as_second();
+    assert!(max < u32::MAX as i64);
 }
