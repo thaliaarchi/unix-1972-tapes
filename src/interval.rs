@@ -67,6 +67,24 @@ impl IntervalSet {
             }
         }
     }
+
+    pub fn complement(&self, out: &mut Vec<Range<usize>>) {
+        if self.intervals.is_empty() {
+            out.push(0..usize::MAX);
+            return;
+        }
+        let start = self.intervals[0].start;
+        if start != 0 {
+            out.push(0..start);
+        }
+        for pair in self.intervals.windows(2) {
+            out.push(pair[0].end..pair[1].start);
+        }
+        let end = self.intervals[self.intervals.len() - 1].end;
+        if end != usize::MAX {
+            out.push(end..usize::MAX);
+        }
+    }
 }
 
 fn normalize(interval: Range<usize>) -> Range<usize> {
