@@ -40,10 +40,21 @@ pub struct Mode(pub u8);
 
 /// Timestamp in the Unix V1 format, i.e., 1/60 seconds since an [epoch](Epoch).
 ///
+/// When an epoch is not specified, it defaults to 1972.
+///
 /// > In the early version of UNIX, timestamps were in 1/60th second units. A
 /// > 32-bit counter using these units overflows in 2.5 years, so the epoch had
 /// > to be changed periodically, and I believe 1970, 1971, 1972 and 1973 were
-/// > all epochs at one stage or another. [[Warren Toomey](https://www.tuhs.org/Archive/Distributions/Research/1972_stuff/Readme)]
+/// > all epochs at one stage or another.
+/// >
+/// > Given that the C compiler passes, and the library, are dated in June of
+/// > the epoch year, and that Dennis has said ``1972-73 were the truly
+/// > formative years in the development of the C language'', it's therefore
+/// > unlikely that the epoch for the s2 tape is 1971: it is more likely to be
+/// > 1972. The tape also contains several 1st Edition a.out binaries, which
+/// > also makes it unlikely to be 1973.
+/// >
+/// > [[Warren Toomey](https://www.tuhs.org/Archive/Distributions/Research/1972_stuff/Readme)]
 pub struct Time(pub u32);
 
 /// The epoch of a Unix V1 timestamp.
@@ -102,7 +113,7 @@ impl Header {
     /// The modification time in the Unix V1 format.
     pub fn mtime(&self) -> Time {
         let t = self.mtime;
-        Time((t[1] as u32) << 24 | (t[0] as u32) << 16 | (t[3] as u32) << 8 | (t[2] as u32) << 0)
+        Time(u32::from_le_bytes([t[2], t[3], t[0], t[1]]))
     }
 
     /// The index of the 512-byte block which the file contents start at.
@@ -255,22 +266,58 @@ impl Time {
         let seconds = self.0 / 60;
         let frac = self.0 % 60;
         let since = Duration::new(seconds as _, (frac as u64 * 1_000_000_000 / 60) as _);
-
-        let epoch = Date::constant(1970 + epoch as i16, 1, 1);
-        let epoch = epoch.to_zoned(TimeZone::UTC).unwrap();
-
         epoch.timestamp() + since
+    }
+
+    /// The time as a timestamp with seconds resolution in the given epoch.
+    pub fn timestamp_seconds(&self, epoch: Epoch) -> Timestamp {
+        epoch.timestamp() + Duration::from_secs((self.0 / 60) as _)
     }
 
     /// The number of seconds since the 1970 Unix epoch.
     pub fn seconds(&self, epoch: Epoch) -> u32 {
-        self.timestamp(epoch).as_second() as u32
+        self.timestamp_seconds(epoch).as_second() as u32
+    }
+
+    /// The number of 1/60ths of a second in this time.
+    pub fn subseconds(&self) -> u8 {
+        (self.0 % 60) as _
     }
 }
 
+/// Formats the time relative to an epoch specified in the precision field, or
+/// 1972 if not given, along with the raw time integer.
 impl fmt::Debug for Time {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} ({})", self.0, self.timestamp(Epoch::Y1972))
+        fmt::Display::fmt(self, f)?;
+        write!(f, " ({})", self.0)
+    }
+}
+
+/// Formats the time relative to an epoch specified in the precision field, or
+/// 1972 if not given.
+impl fmt::Display for Time {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let epoch = match f.precision() {
+            Some(1970) => Epoch::Y1970,
+            Some(1971) => Epoch::Y1971,
+            Some(1972) => Epoch::Y1972,
+            Some(1973) => Epoch::Y1973,
+            Some(_) => return Err(fmt::Error),
+            None => Epoch::Y1972,
+        };
+        let t = self.timestamp_seconds(epoch).strftime("%F %T");
+        write!(f, "{t}:{:02}", self.subseconds())
+    }
+}
+
+impl Epoch {
+    /// The epoch as a timestamp.
+    pub fn timestamp(self) -> Timestamp {
+        Date::constant(1970 + self as i16, 1, 1)
+            .to_zoned(TimeZone::UTC)
+            .unwrap()
+            .timestamp()
     }
 }
 
@@ -280,4 +327,33 @@ fn time_seconds_range() {
     assert_eq!(min, 0);
     let max = Time(u32::MAX).timestamp(Epoch::Y1973).as_second();
     assert!(max < u32::MAX as i64);
+}
+
+#[test]
+fn epoch_seconds_since_1970() {
+    // Constants used by Apout for seconds from 1970 to 1971 and 1972.
+    // https://github.com/DoctorWkt/Apout/blob/e88a446ace064f5a41e1a47d9ae8278b83b27a20/v1trap.c#L142-L143
+    assert_eq!(Epoch::Y1971.timestamp().as_second(), 31536000);
+    assert_eq!(Epoch::Y1972.timestamp().as_second(), 63072000);
+}
+
+#[test]
+fn time_format() {
+    assert_eq!(format!("{:?}", Time(0)), "1972-01-01 00:00:00:00 (0)");
+    assert_eq!(
+        format!("{:.1970?}", Time(11)),
+        "1970-01-01 00:00:00:11 (11)",
+    );
+    assert_eq!(
+        format!("{:.1971?}", Time(22)),
+        "1971-01-01 00:00:00:22 (22)",
+    );
+    assert_eq!(
+        format!("{:.1972?}", Time(33)),
+        "1972-01-01 00:00:00:33 (33)",
+    );
+    assert_eq!(
+        format!("{:.1973?}", Time(44)),
+        "1973-01-01 00:00:00:44 (44)",
+    );
 }
