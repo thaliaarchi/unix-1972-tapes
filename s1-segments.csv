@@ -88,6 +88,10 @@ unknown539.c,275968,1252
 
 # Binaries:
 
+/bin/date,36864,auto
+/bin/mkdir,40448,auto
+/bin/sh,41472,auto
+
 # Round size up to even:
 /etc/getty,34816,446
 /bin/login,38400,1290
@@ -95,3 +99,6 @@ unknown539.c,275968,1252
 
 # Join the NUL segment
 /bin/tap,43008,3678
+
+# Possibly from an earlier version of init.s, as it is missing itab at the end?
+/etc/init,33792,auto
