@@ -29,7 +29,6 @@ Path,Offset,Length
 /usr/source/s1/dsw.s,143360,1010
 /usr/source/s1/as27.s,144384,2822
 /usr/source/s1/ln.s,147456,465
-/usr/source/s1/as26.s,147968,4854
 /usr/source/s1/chown.s,153088,1091
 /usr/source/s1/as25.s,154624,16
 /usr/source/s1/ar.s,155136,5685
@@ -51,7 +50,7 @@ Path,Offset,Length
 /usr/source/s1/chmod.s,229376,338
 /usr/source/s1/if.c,233984,1593
 /usr/source/s1/cc.c,236032,4054
-/usr/source/s1/form1.s,240128,447
+/usr/source/s1/form1.s,240128,2113
 /usr/source/s1/form5.s,243712,9757
 /usr/source/s1/form6.s,253952,6477
 /usr/source/s1/goto.c,260608,809
@@ -61,17 +60,19 @@ Path,Offset,Length
 /usr/source/s1/fed3.s,277504,4192
 /usr/source/s1/exit.c,275456,53
 # TODO: path
-segment275968.c,275968,1252
+unknown539.c,275968,1252
 
-# TODO: cut
+# Join around 3-byte residue
 /usr/source/s1/as29.s,135680,3624
 
 # Files with residue starting with LF:
 
 # Has 2 LF, V5 has 2 LF / extra code / 1 LF, residue has 1 LF
-/usr/source/s1/ld2.s,64512,7168
+/usr/source/s1/ld2.s,64512,6740
 # Has 2 LF, V5 has 2 LF / extra code / 1 LF, residue has 1 LF
 /usr/source/s1/bas1.s,95744,3082
+# Has 1 LF, V5 has 2 LF / extra code / 1 LF, residue has 1 LF
+/usr/source/s1/as26.s,147968,4853
 # Has 2 LF, V5 has 2 LF / extra code / 1 LF, residue has 1 LF
 /usr/source/s1/as21.s,183296,2309
 # Has 1 LF, V5 has 2 LF, residue has 1 LF => take residue LF
@@ -80,7 +81,7 @@ segment275968.c,275968,1252
 /usr/source/s1/as14.s,214016,2257
 # Has 1 LF, V5 has 2 LF / extra code / 3 LF, residue has 1 LF => take residue LF
 /usr/source/s1/cp.c,242688,921
-# Has 0 LF, V5 has 1 LF, residue has 1 LF => take residue LF
+# Has 0 LF, V5 has 1 LF, residue has 1 LF => take residue LF (automatic)
 /usr/source/s1/form2.s,261632,1019
 # Has 1 LF, V5 ends the same, residue has 1 LF
 /usr/source/s1/form4.s,264704,2820
