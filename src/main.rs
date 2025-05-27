@@ -9,7 +9,7 @@ use std::{
 use unix_1972_bits::{
     debug::{BlockLen, Bytes},
     detect::{detect_magic, is_text},
-    segment::{SegmentHeader, SegmentKind, Segmenter},
+    segment::{SegmentHeader, SegmentKind, SegmentLen, Segmenter},
     tap::Header,
 };
 
@@ -41,7 +41,7 @@ fn segment_tape(tape: &[u8], csv_path: Option<&Path>, tar_path: &Path, include_r
             let file = SegmentHeader {
                 path: h.path().into(),
                 offset: h.offset(),
-                len: h.size() as _,
+                len: SegmentLen::Manual(h.size() as _),
             };
             segmenter.add_header(file).unwrap();
         }
@@ -65,13 +65,15 @@ fn segment_tape(tape: &[u8], csv_path: Option<&Path>, tar_path: &Path, include_r
         let segment = &segmenter.segments()[i];
         let mut h = tar::Header::new_old();
         if let Some(file) = segmenter.header_for_offset(segment.offset) {
-            if file.len != segment.data.len() {
+            if let SegmentLen::Manual(len) = file.len
+                && len != segment.data.len()
+            {
                 eprintln!(
                     "segment {:?} at offset {} has length {}; expected {}",
                     Bytes(&file.path),
                     segment.offset,
                     BlockLen(segment.data.len()),
-                    BlockLen(file.len),
+                    BlockLen(len),
                 );
             }
             let path = file.path.strip_prefix(b"/").unwrap_or(&file.path);

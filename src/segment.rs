@@ -41,7 +41,15 @@ pub struct SegmentHeader {
     #[serde(alias = "Offset")]
     pub offset: usize,
     #[serde(alias = "Length", alias = "length")]
-    pub len: usize,
+    pub len: SegmentLen,
+}
+
+#[derive(Clone, Copy, Deserialize, Debug, PartialEq, Eq)]
+pub enum SegmentLen {
+    #[serde(alias = "auto")]
+    Auto,
+    #[serde(untagged)]
+    Manual(usize),
 }
 
 impl<'a> Segmenter<'a> {
@@ -62,7 +70,10 @@ impl<'a> Segmenter<'a> {
         if offset % self.block_size != 0 {
             bail!("header is not block-aligned");
         }
-        self.header_intervals.insert(header.range())?;
+        if let SegmentLen::Manual(len) = header.len {
+            self.header_intervals
+                .insert(header.offset..header.offset + len)?;
+        }
         if !self.paths.insert(header.path.clone()) {
             bail!("duplicate path: {:?}", Bytes(&header.path));
         }
@@ -102,8 +113,10 @@ impl<'a> Segmenter<'a> {
             let block_end = (block_start + self.block_size).min(self.tape.len());
             let block = &self.tape[block_start..block_end];
 
-            if let Some(header) = self.header_for_offset(block_start) {
-                let range = header.range();
+            if let Some(header) = self.header_for_offset(block_start)
+                && let SegmentLen::Manual(len) = header.len
+            {
+                let range = header.offset..header.offset + len;
                 if segment_start != block_start {
                     self.push(segment_start..block_start, SegmentKind::Original);
                 }
@@ -226,12 +239,6 @@ impl fmt::Debug for Segment<'_> {
             .field("kind", &self.kind)
             .field("data", &Bytes(&self.data))
             .finish()
-    }
-}
-
-impl SegmentHeader {
-    pub fn range(&self) -> Range<usize> {
-        self.offset..self.offset + self.len
     }
 }
 
