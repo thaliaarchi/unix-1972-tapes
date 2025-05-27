@@ -1,6 +1,7 @@
 /// Detects whether the file data is ASCII text.
 pub fn is_text(data: &[u8]) -> bool {
-    data.iter().all(|&b| matches!(b, 0x07..=0x0f | b' '..=b'~'))
+    data.iter()
+        .all(|&b| matches!(b, 0x07..=0x0f | 0x1b | b' '..=b'~'))
 }
 
 /// Magic number for an a.out binary or a shell script.
