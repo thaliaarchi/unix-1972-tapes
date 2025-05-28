@@ -4,9 +4,9 @@ use anyhow::{Result, bail};
 use serde::Deserialize;
 
 use crate::{
-    debug::{BlockLen, Bytes},
     detect::{detect_magic, is_text},
     interval::IntervalSet,
+    util::{BlockLen, Bytes},
 };
 
 pub struct Segmenter<'a> {

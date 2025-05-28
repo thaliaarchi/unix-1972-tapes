@@ -11,7 +11,7 @@ use std::{ffi::OsStr, fmt, mem, ops::Range, os::unix::ffi::OsStrExt, time::Durat
 
 use jiff::{Timestamp, civil::Date, tz::TimeZone};
 
-use crate::debug::Bytes;
+use crate::util::{Bytes, U16Le, U32Me};
 
 /// A file header in a tap file.
 #[derive(Clone, PartialEq, Eq)]
@@ -24,15 +24,15 @@ pub struct Header {
     /// The user ID.
     pub uid: u8,
     /// The length of the file contents.
-    pub size: [u8; 2],
+    pub size: U16Le,
     /// The modification time in Unix V1 format.
-    pub mtime: [u8; 4],
+    pub mtime: U32Me,
     /// The index of the 512-byte block which the file contents start at.
-    pub block: [u8; 2],
+    pub block: U16Le,
     /// Unused padding.
     pub unused: [u8; 20],
     /// The checksum of this header.
-    pub cksum: [u8; 2],
+    pub cksum: U16Le,
 }
 
 /// Permission bits in the Unix V1 format.
@@ -107,18 +107,17 @@ impl Header {
 
     /// The length of the file contents.
     pub fn size(&self) -> u16 {
-        u16::from_le_bytes(self.size)
+        self.size.get()
     }
 
     /// The modification time in the Unix V1 format.
     pub fn mtime(&self) -> Time {
-        let t = self.mtime;
-        Time(u32::from_le_bytes([t[2], t[3], t[0], t[1]]))
+        Time(self.mtime.get())
     }
 
     /// The index of the 512-byte block which the file contents start at.
     pub fn block(&self) -> u16 {
-        u16::from_le_bytes(self.block)
+        self.block.get()
     }
 
     /// The byte offset in the tap file of the start of the file.
@@ -134,7 +133,7 @@ impl Header {
 
     /// The checksum of this header.
     pub fn cksum(&self) -> u16 {
-        u16::from_le_bytes(self.cksum)
+        self.cksum.get()
     }
 
     /// Converts this tap header to a tar header.

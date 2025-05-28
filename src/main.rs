@@ -7,10 +7,10 @@ use std::{
 };
 
 use unix_1972_bits::{
-    debug::{BlockLen, Bytes},
     detect::{detect_magic, is_text},
     segment::{SegmentHeader, SegmentKind, SegmentLen, Segmenter},
     tap::Header,
+    util::{BlockLen, Bytes},
 };
 
 fn main() {
