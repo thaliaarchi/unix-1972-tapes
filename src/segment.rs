@@ -4,7 +4,7 @@ use anyhow::{Result, bail};
 use serde::Deserialize;
 
 use crate::{
-    detect::{detect_magic, is_text},
+    detect::{AOut, Magic, is_text},
     interval::IntervalSet,
     util::{BlockLen, Bytes},
 };
@@ -116,6 +116,14 @@ impl<'a> Segmenter<'a> {
             if let Some(header) = self.header_for_offset(block_start)
                 && let SegmentLen::Manual(len) = header.len
             {
+                if let Some(aout) = AOut::parse(block)
+                    && let Some(aout_size) = aout.file_size()
+                {
+                    // Some files have a larger size than predicted by their
+                    // a.out headers. This may be the case for those with
+                    // undefined external symbols?
+                    assert!(aout_size <= len);
+                }
                 let range = header.offset..header.offset + len;
                 if segment_start != block_start {
                     self.push(segment_start..block_start, SegmentKind::Original);
@@ -128,11 +136,19 @@ impl<'a> Segmenter<'a> {
                 continue;
             }
 
-            if detect_magic(block).is_some() {
+            if Magic::detect(block).is_some() {
                 if segment_start != block_start {
                     self.push(segment_start..block_start, SegmentKind::Original);
                 }
                 segment_start = block_start;
+            }
+            if let Some(aout) = AOut::parse(block)
+                && let Some(aout_size) = aout.file_size()
+            {
+                self.push(
+                    segment_start..segment_start + aout_size,
+                    SegmentKind::Original,
+                );
             }
 
             // Check for blocks that are all NUL or all 0xFF.

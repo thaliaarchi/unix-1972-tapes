@@ -7,7 +7,7 @@ use std::{
 };
 
 use unix_1972_bits::{
-    detect::{detect_magic, is_text},
+    detect::{Magic, is_text},
     segment::{SegmentHeader, SegmentKind, SegmentLen, Segmenter},
     tap::Header,
     util::{BlockLen, Bytes},
@@ -99,7 +99,7 @@ fn segment_tape(tape: &[u8], csv_path: Option<&Path>, tar_path: &Path, include_r
             } else {
                 "bin "
             },
-            detect_magic(segment.data)
+            Magic::detect(segment.data)
                 .map(|m| format!("{m:?}"))
                 .unwrap_or("none".to_owned()),
             Bytes(&h.path_bytes()),
