@@ -225,11 +225,11 @@ impl<'a> Segmenter<'a> {
 
     fn check_uniform(&mut self, block_start: usize, byte: u8) -> Option<usize> {
         let mut end = block_start;
-        for block in self.tape[block_start..].chunks_exact(self.block_size) {
+        for block in self.tape[block_start..].chunks(self.block_size) {
             if !block.iter().all(|&b| b == byte) {
                 break;
             }
-            end += self.block_size;
+            end += block.len();
             if self.header_for_offset(end).is_some() {
                 break;
             }
