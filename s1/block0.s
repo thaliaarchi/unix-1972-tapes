@@ -16,6 +16,27 @@ dbr =	177472				/ #define DBR	0177472	/* Data buffer register */
 ma =	177474				/ #define MA	0177474	/* Maintenance register */
 ads =	177476				/ #define ADS	0177476	/* Address of disk segment register */
 
+					/ /* TCCM bits */
+					/ #define DO		1	/* Give a new function */
+					/ #define SAT		(0<<1)	/* Function: stop all transports */
+					/ #define RNUM		(1<<1)	/* Function: read block number */
+					/ #define RDATA		(2<<1)	/* Function: read data */
+					/ #define RALL		(3<<1)	/* Function: read all */
+					/ #define SST		(4<<1)	/* Function: stop selected transport */
+					/ #define WRTM		(5<<1)	/* Function: write timing and mark trace */
+					/ #define WDATA		(6<<1)	/* Function: write data */
+					/ #define WALL		(7<<1)	/* Function: write all */
+					/ #define XBA16		(1<<4)	/* Extended bus address bit 16 */
+					/ #define XBA17		(1<<5)	/* Extended bus address bit 17 */
+					/ #define IE		(1<<6)	/* Interrupt enable */
+					/ #define READY		(1<<7)	/* Ready */
+					/ #define TAPE(n)	(n<<8)	/* Select tape unit n (0-7) */
+					/ #define FWD		(0<<11)	/* Forward direction */
+					/ #define REV		(1<<11)	/* Reverse direction */
+					/ #define DINHB		(1<<12)	/* Delay inhibit */
+					/ #define MAINT		(1<<13) /* Used for maintenance functions */
+					/ #define ERROR		(1<<15)	/* Error condition */
+
 	mov	$20000,sp
 	jsr	r5,init			/ init(data);
 
@@ -28,13 +49,6 @@ ads =	177476				/ #define ADS	0177476	/* Address of disk segment register */
 004567; 000134; 000003; 140000
 054000; 176000; 000005; 000137
 054000
-
-					/ /* TCCM command values */
-					/ #define DO	1	/* Give a new function */
-					/ #define RNUM	2	/* Function: read block number */
-					/ #define TAPE0	00000	/* Select tape unit 0 */
-					/ #define FWD	00000	/* Forward direction */
-					/ #define REV	04000	/* Reverse direction */
 
 					/ /* Wait until TCCM bit 7 (ready) is set, indicating
 					/  * that the current command has completed execution. */
@@ -49,7 +63,7 @@ init:					/ init(data)
 seekfwd:				/ seekfwd:
 	mov	$tcdt,r0
 	mov	$tccm,r1
-	mov	$3,(r1)			/	*TCCM = DO | RNUM | TAPE0 | FWD;
+	mov	$3,(r1)			/	*TCCM = DO | RNUM | TAPE(0) | FWD;
 1:
 	tstb	(r1)			/	wait();
 	bge	1b
@@ -60,7 +74,7 @@ seekfwd:				/ seekfwd:
 	bgt	seekfwd			/	if (*data > *TCDT)
 					/		goto seekfwd;
 seekrev:				/ seekrev:
-	mov	$4003,(r1)		/	*TCCM = DO | RNUM | TAPE0 | REV;
+	mov	$4003,(r1)		/	*TCCM = DO | RNUM | TAPE(0) | REV;
 1:
 	tstb	(r1)			/	wait();
 	bge	1b
