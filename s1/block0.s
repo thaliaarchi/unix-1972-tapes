@@ -17,9 +17,9 @@ ma =	177474				/ #define MA	0177474	/* Maintenance register */
 ads =	177476				/ #define ADS	0177476	/* Address of disk segment register */
 
 	mov	$20000,sp
-	jsr	r5,init			/ init(values);
+	jsr	r5,init			/ init(data);
 
-000001; 020000; 160000; 000005		/ int values[] = { ... };
+000001; 020000; 160000; 000005		/ int data[] = { ... };
 004567; 000204; 000003; 140000
 020000; 160000; 000003; 004567
 000050; 000041; 020000; 160000
@@ -38,71 +38,68 @@ ads =	177476				/ #define ADS	0177476	/* Address of disk segment register */
 
 					/ /* Wait until TCCM bit 7 (ready) is set, indicating
 					/  * that the current command has completed execution. */
-					/ #define wait() while (*(char *)cmd >= 0)
+					/ #define wait() while (*(char *)TCCM >= 0)
 
 					/ /* Test whether TCCM bit 15 (error) is set. */
 					/ #define error()
 
-init:					/ init(values)
-					/ int *values; /* r5 */
+init:					/ init(data)
+					/ int *data; /* r5 */
 					/ {
-					/	register int *data; /* r0 */
-					/	register int *cmd; /* r1 */
-					/	register int *dp; /* r2 */
 seekfwd:				/ seekfwd:
-	mov	$tcdt,r0		/	data = TCDT;
-	mov	$tccm,r1		/	cmd = TCCM;
-	mov	$3,(r1)			/	*cmd = DO | RNUM | TAPE0 | FWD;
+	mov	$tcdt,r0
+	mov	$tccm,r1
+	mov	$3,(r1)			/	*TCCM = DO | RNUM | TAPE0 | FWD;
 1:
 	tstb	(r1)			/	wait();
 	bge	1b
 	tst	(r1)	/ error?	/	if (error())
 	blt	seekrev			/		goto seekrev;
-	cmp	(r5),(r0)		/	if (*values == *data)
+	cmp	(r5),(r0)		/	if (*data == *TCDT)
 	beq	found			/		goto found;
-	bgt	seekfwd			/	if (*values > *data)
+	bgt	seekfwd			/	if (*data > *TCDT)
 					/		goto seekfwd;
 seekrev:				/ seekrev:
-	mov	$4003,(r1)		/	*cmd = DO | RNUM | TAPE0 | REV;
+	mov	$4003,(r1)		/	*TCCM = DO | RNUM | TAPE0 | REV;
 1:
 	tstb	(r1)			/	wait();
 	bge	1b
 	tst	(r1)			/	if (error())
 	blt	seekfwd			/		goto seekfwd;
-	mov	(r0),r2			/	dp = *data + 5;
+	mov	(r0),r2
 	add	$5,r2
-	cmp	(r5),r2			/	if (*values > dp)
+	cmp	(r5),r2			/	if (*data > *TCDT + 5)
 	bgt	seekfwd			/		goto seekfwd;
 	br	seekrev			/	goto seekrev;
 found:					/ found:
-	tst	(r5)+			/	values++;
-	mov	(r5)+,-(r0)		/	*--data = *values++;
-	mov	(r5)+,-(r0)		/	*--data = *values++;
-	mov	(r5)+,-(r0)		/	*--data = *values++;
+	tst	(r5)+			/	data++;
+	mov	(r5)+,-(r0)		/	*TCBA = *data++;
+	mov	(r5)+,-(r0)		/	*TCWC = *data++;
+	mov	(r5)+,-(r0)		/	*TCCM = *data++;
 1:
 	tstb	(r0)			/	wait();
 	bge	1b
 	tst	(r0)	/ error?	/	if (error()) {
 	bge	2f
-	sub	$10,r5			/		values =- 4;
+	sub	$8.,r5			/		data =- 4;
 	br	seekfwd			/		goto seekfwd;
 2:					/	}
-	mov	$1,(r0)			/	*data = 1;
+	mov	$1,(r0)			/	*TCCM = 1;
 	rts	r5			/	return;
 
 disk:					/ disk:
-	mov	$dbr,r0			/	data = DBR;
-	mov	(r5)+,-(r0)		/	*--data = *values++;
-	mov	(r5)+,-(r0)		/	*--data = *values++;
-	mov	(r5)+,-(r0)		/	*--data = *values++;
-	mov	(r5)+,-(r0)		/	*--data = *values++;
-	mov	(r5)+,-(r0)		/	*--data = *values++;
+	mov	$dbr,r0
+	mov	(r5)+,-(r0)		/	*DAE = *data++;
+	mov	(r5)+,-(r0)		/	*DAR = *data++;
+	mov	(r5)+,-(r0)		/	*CMA = *data++;
+	mov	(r5)+,-(r0)		/	*WC = *data++;
+	mov	(r5)+,-(r0)		/	*DCS = *data++;
 1:
 	tstb	(r0)			/	wait();
 	bge	1b
 	tst	(r0)			/	if (error()) {
 	bge	2f
-	sub	$12,r5			/		values =- 5;
+	sub	$10.,r5			/		data =- 5;
 	br	disk			/		goto disk;
 2:					/	}
 	rts	r5
