@@ -119,7 +119,7 @@ dbr =	177472				/ #define DBR	((int *)0177472)	/* Data buffer register */
 	-2000	/ WC			/		-1024,		/* WC: transfer 8192 words */
 	5	/ DCS			/		GO|D_READ,	/* DCS: command */
 					/	);
-	jmp	*$54000			/	(*(int (*)()) &buf[7168])();
+	jmp	*$54000			/	((int (*)()) &buf[7168])();
 					/ };
 
 					/ /* Seeks to the given block in tape 0, then writes
