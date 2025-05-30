@@ -6,7 +6,7 @@ use std::{
     path::Path,
 };
 
-use unix_1972_bits::{
+use unix_1972_tapes::{
     detect::{Magic, is_text},
     segment::{SegmentHeader, SegmentKind, SegmentLen, Segmenter},
     tap::Header,
