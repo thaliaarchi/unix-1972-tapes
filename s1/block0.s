@@ -1,20 +1,20 @@
 / Block 0 of s1-bits
 
 / Tape control registers [https://gunkies.org/wiki/TC11_DECtape_controller]
-tcst =	177340				/ #define TCST	0177340	/* Control and status register */
-tccm =	177342				/ #define TCCM	0177342	/* Command register */
-tcwc =	177344				/ #define TCWC	0177344	/* Word count register */
-tcba =	177346				/ #define TCBA	0177346	/* Bus address register */
-tcdt =	177350				/ #define TCDT	0177350	/* Data register */
+tcst =	177340				/ #define TCST	((int *)0177340)	/* Control and status register */
+tccm =	177342				/ #define TCCM	((int *)0177342)	/* Command register */
+tcwc =	177344				/ #define TCWC	((int *)0177344)	/* Word count register */
+tcba =	177346				/ #define TCBA	((int *)0177346)	/* Bus address register */
+tcdt =	177350				/ #define TCDT	((int *)0177350)	/* Data register */
 / Disk control registers [https://gunkies.org/wiki/RF11_disk_controller]
-dcs =	177460				/ #define DCS	0177460	/* Disk control status register */
-wc =	177462				/ #define WC	0177462	/* Word count register */
-cma =	177464				/ #define CMA	0177464	/* Current memory address */
-dar =	177466				/ #define DAR	0177466	/* Disk address register */
-dae =	177470				/ #define DAE	0177470	/* Disk address extension error register */
-dbr =	177472				/ #define DBR	0177472	/* Data buffer register */
-ma =	177474				/ #define MA	0177474	/* Maintenance register */
-ads =	177476				/ #define ADS	0177476	/* Address of disk segment register */
+dcs =	177460				/ #define DCS	((int *)0177460)	/* Disk control status register */
+wc =	177462				/ #define WC	((int *)0177462)	/* Word count register */
+cma =	177464				/ #define CMA	((int *)0177464)	/* Current memory address */
+dar =	177466				/ #define DAR	((int *)0177466)	/* Disk address register */
+dae =	177470				/ #define DAE	((int *)0177470)	/* Disk address extension error register */
+dbr =	177472				/ #define DBR	((int *)0177472)	/* Data buffer register */
+ma =	177474				/ #define MA	((int *)0177474)	/* Maintenance register */
+ads =	177476				/ #define ADS	((int *)0177476)	/* Address of disk segment register */
 
 					/ /* TCCM bits */
 					/ #define DO		1	/* Give a new function */
@@ -37,43 +37,45 @@ ads =	177476				/ #define ADS	0177476	/* Address of disk segment register */
 					/ #define MAINT		(1<<13) /* Used for maintenance functions */
 					/ #define ERROR		(1<<15)	/* Error condition */
 
-	mov	$20000,sp		/ #define MEMP		020000	/* Base address to copy tape data to */
+	mov	$20000,sp		/ #define MEMP	((int *)020000)	/* Base address to copy tape data to */
 
 					/ main()
 					/ {
-					/	/* Read 0160000 words from tape 0 to address MEMP.
+					/	/* Word counts are negated. */
+					/
+					/	/* Read 8192 words from tape 0 to address MEMP. */
 	jsr	r5,tapecmd		/	tapecmd(
-	000001				/		1,
-	020000	/ TCBA			/		MEMP,		/* TCBA */
-	160000	/ TCWC			/		0160000,	/* TCWC */
-	000005	/ TCCM			/		DO | RALL | TAPE(0) | FWD,	/* TCCM */
+	1				/		1,
+	20000	/ TCBA			/		MEMP,		/* TCBA */
+	-20000	/ TCWC			/		-8192,		/* TCWC */
+	5	/ TCCM			/		DO | RALL | TAPE(0) | FWD,	/* TCCM */
 					/	);
 	jsr	r5,diskcmd		/	diskcmd(
-	000003	/ DAE			/		3,		/* DAE */
+	3	/ DAE			/		3,		/* DAE */
 	140000	/ DAR			/		0140000,	/* DAR */
-	020000	/ CMA			/		MEMP,		/* CMA */
-	160000	/ WC			/		0160000,	/* WC */
-	000003	/ DCS			/		3,		/* DCS */
+	20000	/ CMA			/		MEMP,		/* CMA */
+	-20000	/ WC			/		-8192,		/* WC */
+	3	/ DCS			/		3,		/* DCS */
 					/	);
 	jsr	r5,tapecmd		/	tapecmd(
-	000041				/		041,
-	020000	/ TCBA			/		MEMP,		/* TCBA */
-	160000	/ TCWC			/		0160000,	/* TCWC */
-	000005	/ TCCM			/		DO | RDATA | TAPE(0) | FWD,	/* TCCM */
+	41				/		33,
+	20000	/ TCBA			/		MEMP,		/* TCBA */
+	-20000	/ TCWC			/		-8192,		/* TCWC */
+	5	/ TCCM			/		DO | RDATA | TAPE(0) | FWD,	/* TCCM */
 					/	);
 	jsr	r5,diskcmd		/	diskcmd(
-	000003	/ DAE			/		3,		/* DAE */
+	3	/ DAE			/		3,		/* DAE */
 	160000	/ DAR			/		0160000,	/* DAR */
-	020000	/ CMA			/		0020000,	/* CMA */
-	160000	/ WC			/		0160000,	/* WC */
-	000003	/ DCS			/		3,		/* DCS */
+	20000	/ CMA			/		020000,		/* CMA */
+	-20000	/ WC			/		-8192,		/* WC */
+	3	/ DCS			/		3,		/* DCS */
 					/	);
 	jsr	r5,diskcmd		/	diskcmd(
-	000003	/ DAE			/		3,		/* DAE */
+	3	/ DAE			/		3,		/* DAE */
 	140000	/ DAR			/		0140000,	/* DAR */
-	054000	/ CMA			/		0054000,	/* CMA */
-	176000	/ WC			/		0176000,	/* WC */
-	000005	/ DCS			/		5,		/* DCS */
+	54000	/ CMA			/		054000,		/* CMA */
+	-2000	/ WC			/		-1024,		/* WC */
+	5	/ DCS			/		5,		/* DCS */
 					/	);
 	jmp	*$54000			/	goto *054000;
 					/ };
