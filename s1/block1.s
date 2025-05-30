@@ -1,12 +1,17 @@
 / Block 1 of s1-bits
 
 / This program is loaded at address 054000.
-base = 54000				/ #define BASE	((char *)54000)
+base = 54000
 
 sr =	177570				/ #define SR	((int *)0177570)	/* Switch register */
 					/ /* Tape control registers */
 tccm =	177342				/ #define TCCM	((int *)0177342)	/* Command register */
 					/ /* Disk control registers */
+					/ #define DCS	((int *)0177460)	/* Disk control status register */
+					/ #define WC	((int *)0177462)	/* Word count register */
+					/ #define CMA	((int *)0177464)	/* Current memory address */
+					/ #define DAR	((int *)0177466)	/* Disk address register */
+					/ #define DAE	((int *)0177470)	/* Disk address extension error register */
 dbr =	177472				/ #define DBR	((int *)0177472)	/* Data buffer register */
 
 block1:					/ block1()
@@ -28,36 +33,66 @@ block1:					/ block1()
 					/		int (*f)();
 					/	};
 tab:					/	struct entry tab[] = {
-	000000; base+L5			/		{000000, BASE+L5},
-	057500; base+L6			/		{057500, BASE+L6},
-	000010; base+L8			/		{000010, BASE+L8},
-	000020; base+L12		/		{000020, BASE+L12},
-	000040; base+L9			/		{000040, BASE+L9},
-	000001; base+L2			/		{000001, BASE+L2},
-	000002; base+L3			/		{000002, BASE+L3},
+	000000; base+L5			/		{000000, L5},
+	057500; base+L6			/		{057500, L6},
+	000010; base+L8			/		{000010, L8},
+	000020; base+L12		/		{000020, L12},
+	000040; base+L9			/		{000040, L9},
+	000001; base+L2			/		{000001, L2},
+	000002; base+L3			/		{000002, L3},
 					/	};
-L1:
-	jsr	r0,L4
-	000003; 142000; 000000; 164000; 000005
-L2:
-	jsr	r0,L4
-	000003; 156000; 000000; 161000; 000005
-L3:
-	jsr	r0,L4
-	000003; 172000; 000000; 175000; 000005
-L4:
+L1:					/ L1:
+					/	/* Read 6144 words from disk 0 track 120 word 1024 to address 0.
+					/	 * This is at word 120*2048+1024 from the disk start,
+					/	 * which was copied from words 1280-7424 in the tape. */
+	jsr	r0,diskcmd		/	diskcmd(
+	3	/ DAE			/		03|DISK(0),	/* DAE: track address (bits 5-6) and disk */
+	142000	/ DAR			/		02000|(030<<11),	/* DAR: word address and track address (bits 0-4)
+	0	/ CMA			/		0,		/* CMA: memory address */
+	-14000	/ WC			/		-6144,		/* WC: transfer 6144 words */
+	5	/ DCS			/		GO|D_READ,	/* DCS: command */
+					/	);
+L2:					/ L2:
+					/	/* Read 7680 words from disk 0 track 123 word 1024 to address 0.
+					/	 * This is word 123*2048+1024 from the disk start. */
+	jsr	r0,diskcmd		/	diskcmd(
+	3	/ DAE			/		03|DISK(0),	/* DAE: track address (bits 5-6) and disk */
+	156000	/ DAR			/		02000|(033<<11),	/* DAR: word address and track address (bits 0-4)
+	0	/ CMA			/		0,		/* CMA: memory address */
+	-17000	/ WC			/		-7680,		/* WC: transfer 7680 words */
+	5	/ DCS			/		GO|D_READ,	/* DCS: command */
+					/	);
+L3:					/ L3:
+					/	/* Read 1536 words from disk 0 track 126 word 1024 to address 0.
+					/	 * This is word 126*2048+1024 from the disk start. */
+	jsr	r0,diskcmd		/	diskcmd(
+	3	/ DAE			/		03|DISK(0),	/* DAE: track address (bits 5-6) and disk */
+	172000	/ DAR			/		02000|(036<<11),	/* DAR: word address and track address (bits 0-4)
+	0	/ CMA			/		0,		/* CMA: memory address */
+	-3000	/ WC			/		-1536,		/* WC: transfer 1536 words */
+	5	/ DCS			/		GO|D_READ,	/* DCS: command */
+					/	);
+
+					/ /* Sends the given command to the disk controller. */
+diskcmd:				/ diskcmd(dae, dar, cma, wc, dcs)
+					/ {
+					/	int s;
 	mov	$dbr,r1
-	mov	(r0)+,-(r1)
-	mov	(r0)+,-(r1)
-	mov	(r0)+,-(r1)
-	mov	(r0)+,-(r1)
-	mov	(r0)+,-(r1)
-1:
-	mov	(r1),r0
-	blt	block1
-	tstb	r0
-	bge	1b
-	000167; 124206	/ jmp 125400
+	mov	(r0)+,-(r1)		/	*DAE = dae;
+	mov	(r0)+,-(r1)		/	*DAR = dar;
+	mov	(r0)+,-(r1)		/	*CMA = cma;
+	mov	(r0)+,-(r1)		/	*WC = wc;
+	mov	(r0)+,-(r1)		/	*DCS = dcs;
+1:					/	do {
+	mov	(r1),r0			/		s = *DCS;
+	blt	block1			/		if (s < 0)
+					/			goto block1;
+	tstb	r0			/	/* Until the DCS ready bit is set */
+	bge	1b			/	} while((char)s >= 0);
+	000167; 124206	/ jmp 125400	/	goto TODO;
+					/	/* Apparently does not pop sp */
+					/ }
+
 L5:
 	jsr	r0,L7
 	base+410
