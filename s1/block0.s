@@ -37,85 +37,120 @@ ads =	177476				/ #define ADS	0177476	/* Address of disk segment register */
 					/ #define MAINT		(1<<13) /* Used for maintenance functions */
 					/ #define ERROR		(1<<15)	/* Error condition */
 
-	mov	$20000,sp
-	jsr	r5,init			/ init(data);
+	mov	$20000,sp		/ #define MEMP		020000	/* Base address to copy tape data to */
 
-000001; 020000; 160000; 000005		/ int data[] = { ... };
-004567; 000204; 000003; 140000
-020000; 160000; 000003; 004567
-000050; 000041; 020000; 160000
-000005; 004567; 000152; 000003
-160000; 020000; 160000; 000003
-004567; 000134; 000003; 140000
-054000; 176000; 000005; 000137
-054000
+					/ main()
+					/ {
+					/	/* Read 0160000 words from tape 0 to address MEMP.
+	jsr	r5,tapecmd		/	tapecmd(
+	000001				/		1,
+	020000	/ TCBA			/		MEMP,		/* TCBA */
+	160000	/ TCWC			/		0160000,	/* TCWC */
+	000005	/ TCCM			/		DO | RALL | TAPE(0) | FWD,	/* TCCM */
+					/	);
+	jsr	r5,diskcmd		/	diskcmd(
+	000003	/ DAE			/		3,		/* DAE */
+	140000	/ DAR			/		0140000,	/* DAR */
+	020000	/ CMA			/		MEMP,		/* CMA */
+	160000	/ WC			/		0160000,	/* WC */
+	000003	/ DCS			/		3,		/* DCS */
+					/	);
+	jsr	r5,tapecmd		/	tapecmd(
+	000041				/		041,
+	020000	/ TCBA			/		MEMP,		/* TCBA */
+	160000	/ TCWC			/		0160000,	/* TCWC */
+	000005	/ TCCM			/		DO | RDATA | TAPE(0) | FWD,	/* TCCM */
+					/	);
+	jsr	r5,diskcmd		/	diskcmd(
+	000003	/ DAE			/		3,		/* DAE */
+	160000	/ DAR			/		0160000,	/* DAR */
+	020000	/ CMA			/		0020000,	/* CMA */
+	160000	/ WC			/		0160000,	/* WC */
+	000003	/ DCS			/		3,		/* DCS */
+					/	);
+	jsr	r5,diskcmd		/	diskcmd(
+	000003	/ DAE			/		3,		/* DAE */
+	140000	/ DAR			/		0140000,	/* DAR */
+	054000	/ CMA			/		0054000,	/* CMA */
+	176000	/ WC			/		0176000,	/* WC */
+	000005	/ DCS			/		5,		/* DCS */
+					/	);
+	jmp	*$54000			/	goto *054000;
+					/ };
 
 					/ /* Wait until TCCM bit 7 (ready) is set, indicating
 					/  * that the current command has completed execution. */
-					/ #define wait() while (*(char *)TCCM >= 0)
-
+					/ #define tcwait() while (*(char *)TCCM >= 0)
 					/ /* Test whether TCCM bit 15 (error) is set. */
-					/ #define error()
+					/ #define tcerror() (*TCCM < 0)
 
-init:					/ init(data)
-					/ int *data; /* r5 */
+					/ /* Wait until DCS bit 7 (ready) is set, indicating
+					/  * that the current command has completed execution. */
+					/ #define dwait() while (*(char *)TCCM >= 0)
+					/ /* Test whether DCS bit 15 (error) is set. */
+					/ #define derror() (*DCS < 0)
+
+tapecmd:				/ tapecmd(dt, ba, wc, cm)
 					/ {
 seekfwd:				/ seekfwd:
 	mov	$tcdt,r0
 	mov	$tccm,r1
 	mov	$3,(r1)			/	*TCCM = DO | RNUM | TAPE(0) | FWD;
 1:
-	tstb	(r1)			/	wait();
+	tstb	(r1)			/	tcwait();
 	bge	1b
-	tst	(r1)	/ error?	/	if (error())
+	tst	(r1)	/ error?	/	if (tcerror())
 	blt	seekrev			/		goto seekrev;
-	cmp	(r5),(r0)		/	if (*data == *TCDT)
+	cmp	(r5),(r0)		/	if (dt == *TCDT)
 	beq	found			/		goto found;
-	bgt	seekfwd			/	if (*data > *TCDT)
+	bgt	seekfwd			/	if (dt > *TCDT)
 					/		goto seekfwd;
 seekrev:				/ seekrev:
 	mov	$4003,(r1)		/	*TCCM = DO | RNUM | TAPE(0) | REV;
 1:
-	tstb	(r1)			/	wait();
+	tstb	(r1)			/	tcwait();
 	bge	1b
-	tst	(r1)			/	if (error())
+	tst	(r1)			/	if (tcerror())
 	blt	seekfwd			/		goto seekfwd;
 	mov	(r0),r2
 	add	$5,r2
-	cmp	(r5),r2			/	if (*data > *TCDT + 5)
+	cmp	(r5),r2			/	if (dt > *TCDT + 5)
 	bgt	seekfwd			/		goto seekfwd;
 	br	seekrev			/	goto seekrev;
 found:					/ found:
-	tst	(r5)+			/	data++;
-	mov	(r5)+,-(r0)		/	*TCBA = *data++;
-	mov	(r5)+,-(r0)		/	*TCWC = *data++;
-	mov	(r5)+,-(r0)		/	*TCCM = *data++;
+	tst	(r5)+
+	mov	(r5)+,-(r0)		/	*TCBA = ba;
+	mov	(r5)+,-(r0)		/	*TCWC = wc;
+	mov	(r5)+,-(r0)		/	*TCCM = cm;
 1:
-	tstb	(r0)			/	wait();
+	tstb	(r0)			/	tcwait();
 	bge	1b
-	tst	(r0)	/ error?	/	if (error()) {
+	tst	(r0)	/ error?	/	if (tcerror())
 	bge	2f
-	sub	$8.,r5			/		data =- 4;
+	sub	$8.,r5
 	br	seekfwd			/		goto seekfwd;
-2:					/	}
+2:
 	mov	$1,(r0)			/	*TCCM = 1;
-	rts	r5			/	return;
+	rts	r5
+					/ }
 
-disk:					/ disk:
+diskcmd:				/ diskcmd(dae, dar, cma, wc, dcs)
+					/ {
+					/ retry:
 	mov	$dbr,r0
-	mov	(r5)+,-(r0)		/	*DAE = *data++;
-	mov	(r5)+,-(r0)		/	*DAR = *data++;
-	mov	(r5)+,-(r0)		/	*CMA = *data++;
-	mov	(r5)+,-(r0)		/	*WC = *data++;
-	mov	(r5)+,-(r0)		/	*DCS = *data++;
+	mov	(r5)+,-(r0)		/	*DAE = dae;
+	mov	(r5)+,-(r0)		/	*DAR = dar;
+	mov	(r5)+,-(r0)		/	*CMA = cma;
+	mov	(r5)+,-(r0)		/	*WC = wc;
+	mov	(r5)+,-(r0)		/	*DCS = dcs;
 1:
-	tstb	(r0)			/	wait();
+	tstb	(r0)			/	dwait();
 	bge	1b
-	tst	(r0)			/	if (error()) {
+	tst	(r0)			/	if (derror())
 	bge	2f
-	sub	$10.,r5			/		data =- 5;
-	br	disk			/		goto disk;
-2:					/	}
+	sub	$10.,r5
+	br	diskcmd			/		goto retry;
+2:
 	rts	r5
 					/ }
 
