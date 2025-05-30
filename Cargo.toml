@@ -1,9 +1,9 @@
 [package]
-name = "unix-1972-bits"
+name = "unix-1972-tapes"
 version = "0.1.0"
 authors = ["Thalia Archibald <thalia@archibald.dev>"]
 edition = "2024"
-description = "Parser for the Unix s2-bits tape"
+description = "Parser for the Unix s1 and s2 tapes from 1972"
 license = "BSD-3-Clause"
 keywords = ["unix", "retrocomputing"]
 categories = ["encoding"]
