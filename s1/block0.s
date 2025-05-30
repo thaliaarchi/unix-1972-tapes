@@ -1,10 +1,15 @@
 / Block 0 of s1-bits
 
-/ This reads data from the tape and reads from and writes to a disk by
-/ manipulating device registers for the RC11 DECtape controller and RF11 DECdisk
-/ controller.
+/ This reads data from the tape, writes it to disk, then executes it.
 /
-/ References:
+/ This program is from bytes 0-290 of the tape. It copies 32768 bytes from the
+/ tape at bytes 512-33280 to the disk at bytes 491520-524288. Afterwards, bytes
+/ 16896-31232 followed by bytes 512-16896 from the tape are loaded into memory
+/ at address 020000. It then executes the code at address 054000, which is from
+/ byte offset 512 in the disk.
+/
+/ It manipulates device registers for the RC11 DECtape controller and RF11
+/ DECdisk controller. References:
 /   *	TC11 DECtape system manual, Chapter 4 Programming Information and Table 3-3,
 /	https://bitsavers.org/pdf/dec/dectape/tc11/TC11_Mantenance_Manual.pdf
 /   *	RF11/RS11 DECdisk system manual, Chapter 3 Programming and Section 1.3.3 Logic Format,
