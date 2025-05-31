@@ -1,5 +1,8 @@
 / Block 0 of s1-bits
 
+/ It was assembled from /usr/sys/maki.s in s2, starting at label vcboot, and
+/ written by the same program. Documented in V1 and V2 bproc(7).
+
 / This reads data from the tape, writes it to disk, then executes it.
 /
 / This program is from bytes 0-290 of the tape. It copies 32768 bytes from the

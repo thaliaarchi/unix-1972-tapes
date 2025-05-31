@@ -1,5 +1,20 @@
 / Block 1 of s1-bits
 
+/ It was written by /usr/sys/maki.s in s2 and was populated from the contents of
+/ buf when that program was run.
+
+/ Documented in V1 and V2 bproc(7).
+/ This version appears to be between settings in the V1 and V2 manuals. It has
+/ the following settings:
+/   *	???	V2 (was 173700 or 73700 in V1)
+/   *	0	both
+/   *	1	both
+/   *	2	V1 only
+/   *	10	both
+/   *	20	V2 only
+/   *	40	V2 only
+/   *	57500	V1 (changed to 77500 in V2)
+
 / This program is loaded at address 054000.
 base = 54000
 
@@ -25,7 +40,7 @@ block1:					/ block1()
 	tst	(r1)+
 	cmp	r1,$base+L1
 	bne	1b			/	}
-	br	L1			/	goto L1;
+	br	L1			/	goto L1; /* Warm Unix */
 2:
 	jmp	*0(r1)			/
 					/	struct entry {
@@ -33,15 +48,15 @@ block1:					/ block1()
 					/		int (*f)();
 					/	};
 tab:					/	struct entry tab[] = {
-	000000; base+L5			/		{000000, L5},
-	057500; base+L6			/		{057500, L6},
-	000010; base+L8			/		{000010, L8},
-	000020; base+L12		/		{000020, L12},
-	000040; base+L9			/		{000040, L9},
-	000001; base+L2			/		{000001, L2},
-	000002; base+L3			/		{000002, L3},
+	000000; base+L5			/		{000000, L5},	/* Load standard Unix binary paper tape and transfer to it */
+	057500; base+L6			/		{057500, L6},	/* Load standard DEC absolute and binary loaders and transfer to it */
+	000010; base+L8			/		{000010, L8},	/* Dump memory onto a drive then halt */
+	000020; base+L12		/		{000020, L12},	/* Read 256 words from disk into memory and transfer to it */
+	000040; base+L9			/		{000040, L9},	/* Dump memory onto a drive then load Warm Unix */
+	000001; base+L2			/		{000001, L2},	/* Cold Unix */
+	000002; base+L3			/		{000002, L3},	/* Read the unassigned 3K program and transfer to it */
 					/	};
-L1:					/ L1:
+L1:					/ L1:	/* Warm Unix */
 					/	/* Read 6144 words from disk 0 track 120 word 1024 to address 0.
 					/	 * This is at word 120*2048+1024 from the disk start,
 					/	 * which was copied from words 1280-7424 in the tape. */
